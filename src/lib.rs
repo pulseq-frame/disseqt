@@ -82,7 +82,7 @@ impl SeqParser {
         (0.0, self.sequence.blocks.iter().map(|b| b.duration).sum())
     }
 
-    pub fn next(&self, t_start: f32, poi: Poi) -> f32 {
+    pub fn next(&self, t_start: f32, poi: Poi) -> Option<f32> {
         todo!()
     }
 
