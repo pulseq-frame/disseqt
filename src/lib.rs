@@ -4,6 +4,12 @@
 //! sequence but a series of functions to sample it. This makes the usesrs of
 //! this API independent of implementation details of, e.g. pulseq.
 
+use std::iter::once;
+
+use crate::util::Rotation;
+
+mod util;
+
 /// Contains the RF Pulse state for a single point in time.
 #[derive(Debug, Clone, Copy)]
 pub struct PulseSample {
@@ -83,71 +89,52 @@ pub enum Poi {
 /// A MRI-Sequence black box. The inner structure of the sequence is hidden and
 /// might even change in the future if other inputs than pulseq are supported.
 /// Use the provided methods to sample and convert the sequence into any format.
-pub struct Sequence {
-    block_start_times: Vec<f32>,
-    sequence: pulseq_rs::Sequence,
-}
+pub struct Sequence(pulseq_rs::Sequence);
 
 impl Sequence {
     /// Create a `Sequence` by parsing a pulseq .seq file.
     /// Returns an error if parsing fails.
     pub fn from_pulseq_file(source: &str) -> Result<Self, pulseq_rs::Error> {
-        let sequence = pulseq_rs::Sequence::from_source(source)?;
-
-        let block_start_times = sequence
-            .blocks
-            .iter()
-            .scan(0.0, |acc, b| {
-                *acc += b.duration;
-                Some(*acc)
-            })
-            .collect();
-
-        Ok(Self {
-            block_start_times,
-            sequence,
-        })
+        pulseq_rs::Sequence::from_source(source).map(Self)
     }
 
     /// Calculate the duration of the MRI sequence. It is guaranteed that there
     /// are no POIs outside of the time range `[0, duration()]`
     pub fn duration(&self) -> f32 {
-        self.sequence.blocks.iter().map(|b| b.duration).sum()
+        self.0.blocks.iter().map(|b| b.duration).sum()
     }
 
     /// Return the next Point of Interest of the given type after the given
     /// point in time. Returns `None` if there is none.
     pub fn next(&self, t_start: f32, poi: Poi) -> Option<f32> {
-        let idx_start = match self
-            .block_start_times
-            .binary_search_by(|t| t.total_cmp(&t_start))
-        {
-            Ok(idx) => idx,             // start searching beginning with the exact match
-            Err(idx) => idx.max(1) - 1, // start searching before the insertion point
-        };
+        for block in &self.0.blocks {
+            // Check if block is too early - we could directly start with the
+            // right block by doing a binary search in the start times, but to
+            // guarantee correctness, this first version is as simple as possible.
+            if t_start > block.t_start + block.duration {
+                continue;
+            }
 
-        let mut t = t_start;
-        for block in &self.sequence.blocks[idx_start..] {
-            match poi {
-                Poi::PulseStart => {
-                    if let Some(rf) = &block.rf {
-                        return Some(t + rf.delay);
-                    }
-                }
+            let t = match poi {
+                Poi::PulseStart => block.rf.as_ref().map(|rf| block.t_start + rf.delay),
                 Poi::PulseSample => todo!(),
-                Poi::PulseEnd => {
-                    if let Some(rf) = &block.rf {
-                        return Some(t + rf.delay + rf.duration(self.sequence.time_raster.rf));
-                    }
-                }
+                Poi::PulseEnd => block
+                    .rf
+                    .as_ref()
+                    .map(|rf| block.t_start + rf.duration(self.0.time_raster.rf)),
                 Poi::GradientStart => todo!(),
                 Poi::GradientSample => todo!(),
                 Poi::GradientEnd => todo!(),
                 Poi::AdcStart => todo!(),
                 Poi::AdcSample => todo!(),
                 Poi::AdcEnd => todo!(),
+            };
+            // Only return the POI if it's actually after t_start
+            if let Some(t) = t {
+                if t >= t_start {
+                    return Some(t);
+                }
             }
-            t += block.duration;
         }
 
         None
@@ -160,33 +147,98 @@ impl Sequence {
         assert!(t_start < t_end);
 
         let idx_start = match self
-            .block_start_times
-            .binary_search_by(|t| t.total_cmp(&t_start))
+            .0
+            .blocks
+            .binary_search_by(|probe| probe.t_start.total_cmp(&t_start))
         {
             Ok(idx) => idx,             // start searching beginning with the exact match
             Err(idx) => idx.max(1) - 1, // start searching before the insertion point
         };
         let idx_end = match self
-            .block_start_times
-            .binary_search_by(|t| t.total_cmp(&t_end))
+            .0
+            .blocks
+            .binary_search_by(|probe| probe.t_start.total_cmp(&t_end))
         {
             Ok(idx) => idx,  // end searching before the exact match
             Err(idx) => idx, // end searching before the insertion point
         };
 
-        let mut rf = PulseMoment {
-            angle: 0.0,
-            phase: 0.0,
-        };
         let mut grad = GradientMoment {
             x: 0.0,
             y: 0.0,
             z: 0.0,
         };
 
-        // TODO: integrate over blocks[idx_start..idx_end]
+        // let mut spin = util::Spin::relaxed();
+        // println!("{idx_start}..{idx_end}");
+        // for block in &self.0.blocks[idx_start..idx_end] {
+        //     if let Some(rf) = &block.rf {
+        //         let sample_time: Vec<f32> = match &rf.time_shape {
+        //             Some(shape) => shape.0.clone(),
+        //             None => (0..rf.amp_shape.0.len()).map(|i| i as f32).collect(),
+        //         };
+        //         let sample_dur: Vec<f32> = match &rf.time_shape {
+        //             Some(shape) => shape
+        //                 .0
+        //                 .windows(2)
+        //                 .map(|ab| {
+        //                     let [a, b] = ab else { unreachable!() };
+        //                     b - a
+        //                 })
+        //                 .chain(once(1.0))
+        //                 .collect(),
+        //             None => vec![1.0; rf.amp_shape.0.len()],
+        //         };
 
-        (rf, grad)
+        //         for i in 0..rf.amp_shape.0.len() {
+        //             let sample_start =
+        //                 block.t_start + rf.delay + sample_time[i] * self.0.time_raster.rf;
+        //             let sample_end = sample_start + sample_dur[i] * self.0.time_raster.rf;
+
+        //             // Sample is before the integration window
+        //             if sample_end <= t_start {
+        //                 continue;
+        //             }
+        //             // Sample has passed the integration window
+        //             if t_end <= sample_start {
+        //                 break;
+        //             }
+
+        //             // Sample overlaps integration window
+        //             let amp = rf.amp * rf.amp_shape.0[i];
+        //             let phase = rf.phase + rf.phase_shape.0[i] * std::f32::consts::PI;
+
+        //             // Calculate the overlap of sample and integration window
+        //             let dur = f32::min(sample_end, t_end) - f32::max(sample_start, t_start);
+        //             // dbg!(dur);
+        //             spin *= Rotation::new(amp * dur, phase);
+        //         }
+        //     }
+        // }
+
+        // Basic first impl: integrate over whole pulse, ignore t_start, t_end.
+        // In addition, we ignore time shapes
+
+        let mut spin = util::Spin::relaxed();
+        for block in &self.0.blocks[idx_start..idx_end] {
+            let Some(rf) = &block.rf else { continue };
+
+            for (amp_sample, phase_sample) in rf.amp_shape.0.iter().zip(&rf.phase_shape.0) {
+                let sample_dur = self.0.time_raster.rf;
+                spin *= Rotation::new(
+                    rf.amp * amp_sample * sample_dur * std::f32::consts::TAU,
+                    rf.phase + phase_sample * std::f32::consts::TAU,
+                );
+            }
+        }
+
+        (
+            PulseMoment {
+                angle: spin.angle(),
+                phase: spin.phase(),
+            },
+            grad,
+        )
     }
 
     /// Returns the amplitudes and phases that are applied at time point `t`.

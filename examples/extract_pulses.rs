@@ -7,10 +7,10 @@ fn main() {
     let mut t = 0.0;
     loop {
         if let Some(pulse_start) = seq.next(t, Poi::PulseStart) {
-            let pulse_end = seq.next(t, Poi::PulseEnd).unwrap();
+            let pulse_end = seq.next(pulse_start, Poi::PulseEnd).unwrap();
             let (pulse, _) = seq.integrate(pulse_start, pulse_end);
 
-            println!("[{pulse_start}:{pulse_end}]: {pulse:?}");
+            println!("[{pulse_start}: {}ms]: {pulse:?}", (pulse_end - pulse_start) * 1e3);
             t = pulse_end;
         } else {
             // No more pulses in the sequence
