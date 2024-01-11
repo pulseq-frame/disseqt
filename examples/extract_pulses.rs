@@ -10,7 +10,7 @@ fn main() {
             let pulse_end = seq.next(t, Poi::PulseEnd).unwrap();
             let (pulse, _) = seq.integrate(pulse_start, pulse_end);
 
-            println!("{pulse:?}");
+            println!("[{pulse_start}:{pulse_end}]: {pulse:?}");
             t = pulse_end;
         } else {
             // No more pulses in the sequence

@@ -118,12 +118,75 @@ impl Sequence {
     /// Return the next Point of Interest of the given type after the given
     /// point in time. Returns `None` if there is none.
     pub fn next(&self, t_start: f32, poi: Poi) -> Option<f32> {
-        todo!()
+        let idx_start = match self
+            .block_start_times
+            .binary_search_by(|t| t.total_cmp(&t_start))
+        {
+            Ok(idx) => idx,             // start searching beginning with the exact match
+            Err(idx) => idx.max(1) - 1, // start searching before the insertion point
+        };
+
+        let mut t = t_start;
+        for block in &self.sequence.blocks[idx_start..] {
+            match poi {
+                Poi::PulseStart => {
+                    if let Some(rf) = &block.rf {
+                        return Some(t + rf.delay);
+                    }
+                }
+                Poi::PulseSample => todo!(),
+                Poi::PulseEnd => {
+                    if let Some(rf) = &block.rf {
+                        return Some(t + rf.delay + rf.duration(self.sequence.time_raster.rf));
+                    }
+                }
+                Poi::GradientStart => todo!(),
+                Poi::GradientSample => todo!(),
+                Poi::GradientEnd => todo!(),
+                Poi::AdcStart => todo!(),
+                Poi::AdcSample => todo!(),
+                Poi::AdcEnd => todo!(),
+            }
+            t += block.duration;
+        }
+
+        None
     }
 
     /// Calculate the pulse and gradient moment for a given time range.
+    /// # Panics
+    /// If `t_start >= t_end`
     pub fn integrate(&self, t_start: f32, t_end: f32) -> (PulseMoment, GradientMoment) {
-        todo!()
+        assert!(t_start < t_end);
+
+        let idx_start = match self
+            .block_start_times
+            .binary_search_by(|t| t.total_cmp(&t_start))
+        {
+            Ok(idx) => idx,             // start searching beginning with the exact match
+            Err(idx) => idx.max(1) - 1, // start searching before the insertion point
+        };
+        let idx_end = match self
+            .block_start_times
+            .binary_search_by(|t| t.total_cmp(&t_end))
+        {
+            Ok(idx) => idx,  // end searching before the exact match
+            Err(idx) => idx, // end searching before the insertion point
+        };
+
+        let mut rf = PulseMoment {
+            angle: 0.0,
+            phase: 0.0,
+        };
+        let mut grad = GradientMoment {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        };
+
+        // TODO: integrate over blocks[idx_start..idx_end]
+
+        (rf, grad)
     }
 
     /// Returns the amplitudes and phases that are applied at time point `t`.
