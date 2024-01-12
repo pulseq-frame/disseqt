@@ -4,8 +4,6 @@
 //! sequence but a series of functions to sample it. This makes the usesrs of
 //! this API independent of implementation details of, e.g. pulseq.
 
-use std::iter::once;
-
 use crate::util::Rotation;
 
 mod util;
@@ -107,17 +105,25 @@ impl Sequence {
     /// Return the next Point of Interest of the given type after the given
     /// point in time. Returns `None` if there is none.
     pub fn next(&self, t_start: f32, poi: Poi) -> Option<f32> {
+        // TODO: Performance can be improved by using binary search.
         for block in &self.0.blocks {
-            // Check if block is too early - we could directly start with the
-            // right block by doing a binary search in the start times, but to
-            // guarantee correctness, this first version is as simple as possible.
+            // We are too early and try beginning with the next block
             if t_start > block.t_start + block.duration {
                 continue;
             }
 
             let t = match poi {
                 Poi::PulseStart => block.rf.as_ref().map(|rf| block.t_start + rf.delay),
-                Poi::PulseSample => todo!(),
+                Poi::PulseSample => block.rf.as_ref().map(|rf| {
+                    // Get the index of the next pulse sample
+                    let index =
+                        ((t_start - block.t_start - rf.delay) / self.0.time_raster.rf - 0.5).ceil();
+                    // Clip to the actual number of samples. If the result is before
+                    // t_start, it is handled by the check below.
+                    let index = (index as usize).min(rf.amp_shape.0.len() - 1);
+                    // Convert back to time
+                    block.t_start + rf.delay + (index as f32 + 0.5) * self.0.time_raster.rf
+                }),
                 Poi::PulseEnd => block
                     .rf
                     .as_ref()
