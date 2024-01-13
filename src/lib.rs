@@ -4,12 +4,14 @@
 //! sequence but a series of functions to sample it. This makes the usesrs of
 //! this API independent of implementation details of, e.g. pulseq.
 
+use pulseq_rs::Gradient;
+
 use crate::util::Rotation;
 
 mod util;
 
 /// Contains the RF Pulse state for a single point in time.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct PulseSample {
     /// Unit: `Hz`
     pub amplitude: f32,
@@ -20,7 +22,7 @@ pub struct PulseSample {
 }
 
 /// Contains the gradient amplitudes for a single point in time.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct GradientSample {
     /// Unit: `Hz / m`
     pub x: f32,
@@ -34,8 +36,9 @@ pub struct GradientSample {
 /// indicate if a particular time point is sampled, only that an ADC block is
 /// active (or not) at the particular point in time. Use the sequence POI API
 /// to fetch the ADC sample locations.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub enum AdcBlockSample {
+    #[default]
     Inactive,
     Active {
         /// Unit: `rad`
@@ -223,7 +226,6 @@ impl Sequence {
         // }
 
         // Basic first impl: integrate over whole pulse, ignore t_start, t_end.
-        // In addition, we ignore time shapes
 
         let mut spin = util::Spin::relaxed();
         for block in &self.0.blocks[idx_start..idx_end] {
@@ -249,6 +251,87 @@ impl Sequence {
 
     /// Returns the amplitudes and phases that are applied at time point `t`.
     pub fn sample(&self, t: f32) -> (PulseSample, GradientSample, AdcBlockSample) {
-        todo!()
+        let block_idx = match self
+            .0
+            .blocks
+            .binary_search_by(|probe| probe.t_start.total_cmp(&t))
+        {
+            Ok(idx) => idx,             // sample is exactly at beginning of block
+            Err(idx) => idx.max(1) - 1, // sample is somewhere in the block
+        };
+        let block = &self.0.blocks[block_idx];
+
+        let pulse_sample = if let Some(rf) = &block.rf {
+            let index =
+                ((t - block.t_start - rf.delay) / self.0.time_raster.rf - 0.5).ceil() as usize;
+            if index < rf.amp_shape.0.len() {
+                PulseSample {
+                    amplitude: rf.amp * rf.amp_shape.0[index],
+                    phase: rf.phase + rf.phase_shape.0[index] * std::f32::consts::TAU,
+                    frequency: rf.freq,
+                }
+            } else {
+                PulseSample::default()
+            }
+        } else {
+            PulseSample::default()
+        };
+
+        let x = block.gx.as_ref().map_or(0.0, |gx| {
+            sample_grad(t - block.t_start, gx.as_ref(), self.0.time_raster.grad)
+        });
+        let y = block.gy.as_ref().map_or(0.0, |gy| {
+            sample_grad(t - block.t_start, gy.as_ref(), self.0.time_raster.grad)
+        });
+        let z = block.gz.as_ref().map_or(0.0, |gz| {
+            sample_grad(t - block.t_start, gz.as_ref(), self.0.time_raster.grad)
+        });
+
+        let adc_sample = if let Some(adc) = &block.adc {
+            if block.t_start + adc.delay <= t
+                && t <= block.t_start + adc.delay + adc.num as f32 * adc.dwell
+            {
+                AdcBlockSample::Active {
+                    phase: adc.phase,
+                    frequency: adc.freq,
+                }
+            } else {
+                AdcBlockSample::Inactive
+            }
+        } else {
+            AdcBlockSample::Inactive
+        };
+
+        (pulse_sample, GradientSample { x, y, z }, adc_sample)
+    }
+}
+
+fn sample_grad(t: f32, grad: &Gradient, grad_raster: f32) -> f32 {
+    match grad {
+        pulseq_rs::Gradient::Free { amp, delay, shape } => {
+            let index = ((t - delay) / grad_raster - 0.5).ceil() as usize;
+            shape.0.get(index).map_or(0.0, |x| amp * x)
+        }
+        pulseq_rs::Gradient::Trap {
+            amp,
+            rise,
+            flat,
+            fall,
+            delay,
+        } => amp * trap_sample(t - delay, *rise, *flat, *fall),
+    }
+}
+
+fn trap_sample(t: f32, rise: f32, flat: f32, fall: f32) -> f32 {
+    if t < 0.0 {
+        0.0
+    } else if t < rise {
+        t / rise
+    } else if t < rise + flat {
+        1.0
+    } else if t < rise + flat + fall {
+        ((rise + flat + fall) - t) / fall
+    } else {
+        0.0
     }
 }
