@@ -178,64 +178,40 @@ impl Sequence {
             z: 0.0,
         };
 
-        // let mut spin = util::Spin::relaxed();
-        // println!("{idx_start}..{idx_end}");
-        // for block in &self.0.blocks[idx_start..idx_end] {
-        //     if let Some(rf) = &block.rf {
-        //         let sample_time: Vec<f32> = match &rf.time_shape {
-        //             Some(shape) => shape.0.clone(),
-        //             None => (0..rf.amp_shape.0.len()).map(|i| i as f32).collect(),
-        //         };
-        //         let sample_dur: Vec<f32> = match &rf.time_shape {
-        //             Some(shape) => shape
-        //                 .0
-        //                 .windows(2)
-        //                 .map(|ab| {
-        //                     let [a, b] = ab else { unreachable!() };
-        //                     b - a
-        //                 })
-        //                 .chain(once(1.0))
-        //                 .collect(),
-        //             None => vec![1.0; rf.amp_shape.0.len()],
-        //         };
-
-        //         for i in 0..rf.amp_shape.0.len() {
-        //             let sample_start =
-        //                 block.t_start + rf.delay + sample_time[i] * self.0.time_raster.rf;
-        //             let sample_end = sample_start + sample_dur[i] * self.0.time_raster.rf;
-
-        //             // Sample is before the integration window
-        //             if sample_end <= t_start {
-        //                 continue;
-        //             }
-        //             // Sample has passed the integration window
-        //             if t_end <= sample_start {
-        //                 break;
-        //             }
-
-        //             // Sample overlaps integration window
-        //             let amp = rf.amp * rf.amp_shape.0[i];
-        //             let phase = rf.phase + rf.phase_shape.0[i] * std::f32::consts::PI;
-
-        //             // Calculate the overlap of sample and integration window
-        //             let dur = f32::min(sample_end, t_end) - f32::max(sample_start, t_start);
-        //             // dbg!(dur);
-        //             spin *= Rotation::new(amp * dur, phase);
-        //         }
-        //     }
-        // }
-
         // Basic first impl: integrate over whole pulse, ignore t_start, t_end.
 
         let mut spin = util::Spin::relaxed();
         for block in &self.0.blocks[idx_start..idx_end] {
             let Some(rf) = &block.rf else { continue };
 
-            for (amp_sample, phase_sample) in rf.amp_shape.0.iter().zip(&rf.phase_shape.0) {
-                let sample_dur = self.0.time_raster.rf;
+            for i in 0..rf.amp_shape.0.len() {
+                let dwell = self.0.time_raster.rf;
+                // Start time of the sample number i
+                let t = block.t_start + rf.delay + i as f32 * dwell;
+
+                // Skip samples before t_start, quit when reaching t_end
+                if t + dwell < t_start {
+                    continue;
+                }
+                if t_end <= t {
+                    break;
+                }
+
+                // We could do the clamping for all samples, but when integrating
+                // over many samples, it seems to be very sensitive to accumulating
+                // errors. Only doing it in the edge cases is much more robust.
+                let dur = if t_start <= t && t + dwell <= t_end {
+                    dwell
+                } else {
+                    // Clamp the sample intervall to the integration intervall
+                    let t0 = f32::max(t_start, t);
+                    let t1 = f32::min(t_end, t + dwell);
+                    t1 - t0
+                };
+
                 spin *= Rotation::new(
-                    rf.amp * amp_sample * sample_dur * std::f32::consts::TAU,
-                    rf.phase + phase_sample * std::f32::consts::TAU,
+                    rf.amp * rf.amp_shape.0[i] * dur * std::f32::consts::TAU,
+                    rf.phase + rf.phase_shape.0[i] * std::f32::consts::TAU,
                 );
             }
         }
