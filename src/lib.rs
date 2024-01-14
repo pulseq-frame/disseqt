@@ -4,7 +4,7 @@
 //! sequence but a series of functions to sample it. This makes the usesrs of
 //! this API independent of implementation details of, e.g. pulseq.
 
-use pulseq_rs::Gradient;
+use pulseq_rs::{Gradient, Shape};
 
 use crate::util::Rotation;
 
@@ -61,11 +61,11 @@ pub struct PulseMoment {
 #[derive(Debug, Clone, Copy)]
 pub struct GradientMoment {
     /// Unit: `rad / m`
-    pub x: f32,
+    pub gx: f32,
     /// Unit: `rad / m`
-    pub y: f32,
+    pub gy: f32,
     /// Unit: `rad / m`
-    pub z: f32,
+    pub gz: f32,
 }
 
 /// Point of Interest: Sequences are continuous in time, arbitary time points
@@ -135,7 +135,16 @@ impl Sequence {
                 Poi::GradientSample => todo!(),
                 Poi::GradientEnd => todo!(),
                 Poi::AdcStart => todo!(),
-                Poi::AdcSample => todo!(),
+                Poi::AdcSample => block.adc.as_ref().map(|adc| {
+                    // Get the index of the next pulse sample
+                    let index =
+                        ((t_start - block.t_start - adc.delay) / adc.dwell - 0.5).ceil();
+                    // Clip to the actual number of samples. If the result is before
+                    // t_start, it is handled by the check below.
+                    let index = (index as usize).min(adc.num as usize - 1);
+                    // Convert back to time
+                    block.t_start + adc.delay + (index as f32 + 0.5) * adc.dwell
+                }),
                 Poi::AdcEnd => todo!(),
             };
             // Only return the POI if it's actually after t_start
@@ -173,12 +182,39 @@ impl Sequence {
         };
 
         let mut grad = GradientMoment {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
+            gx: 0.0,
+            gy: 0.0,
+            gz: 0.0,
         };
-
-        // Basic first impl: integrate over whole pulse, ignore t_start, t_end.
+        for block in &self.0.blocks[idx_start..idx_end] {
+            if let Some(gx) = block.gx.as_ref() {
+                grad.gx += integrate_grad(
+                    gx.as_ref(),
+                    t_start,
+                    t_end,
+                    block.t_start,
+                    self.0.time_raster.grad,
+                );
+            }
+            if let Some(gy) = block.gy.as_ref() {
+                grad.gy += integrate_grad(
+                    gy.as_ref(),
+                    t_start,
+                    t_end,
+                    block.t_start,
+                    self.0.time_raster.grad,
+                );
+            }
+            if let Some(gz) = block.gz.as_ref() {
+                grad.gz += integrate_grad(
+                    gz.as_ref(),
+                    t_start,
+                    t_end,
+                    block.t_start,
+                    self.0.time_raster.grad,
+                );
+            }
+        }
 
         let mut spin = util::Spin::relaxed();
         for block in &self.0.blocks[idx_start..idx_end] {
@@ -282,6 +318,40 @@ impl Sequence {
     }
 }
 
+fn integrate_grad(
+    gx: &Gradient,
+    t_start: f32,
+    t_end: f32,
+    block_start: f32,
+    grad_raster: f32,
+) -> f32 {
+    match gx {
+        Gradient::Free { amp, delay, shape } => {
+            amp * integrate_free(
+                t_start - block_start - delay,
+                t_end - block_start - delay,
+                shape,
+                grad_raster,
+            )
+        }
+        Gradient::Trap {
+            amp,
+            rise,
+            flat,
+            fall,
+            delay,
+        } => {
+            amp * integrate_trap(
+                t_start - block_start - delay,
+                t_end - block_start - delay,
+                *rise,
+                *flat,
+                *fall,
+            )
+        }
+    }
+}
+
 fn sample_grad(t: f32, grad: &Gradient, grad_raster: f32) -> f32 {
     match grad {
         pulseq_rs::Gradient::Free { amp, delay, shape } => {
@@ -310,4 +380,51 @@ fn trap_sample(t: f32, rise: f32, flat: f32, fall: f32) -> f32 {
     } else {
         0.0
     }
+}
+
+fn integrate_trap(t_start: f32, t_end: f32, rise: f32, flat: f32, fall: f32) -> f32 {
+    let integral = |t| {
+        if t <= rise {
+            0.5 * t * t / rise
+        } else if t <= rise + flat {
+            (0.5 * rise) + (t - rise)
+        } else {
+            let rev_t = rise + flat + fall - t;
+            (0.5 * rise) + flat + (0.5 * (fall - rev_t * rev_t / fall))
+        }
+    };
+    integral(t_end.min(rise + flat + fall)) - integral(t_start.max(0.0))
+}
+
+fn integrate_free(t_start: f32, t_end: f32, shape: &Shape, dwell: f32) -> f32 {
+    let mut integrated = 0.0;
+
+    for i in 0..shape.0.len() {
+        // Start time of the sample number i
+        let t = i as f32 * dwell;
+
+        // Skip samples before t_start, quit when reaching t_end
+        if t + dwell < t_start {
+            continue;
+        }
+        if t_end <= t {
+            break;
+        }
+
+        // We could do the clamping for all samples, but when integrating
+        // over many samples, it seems to be very sensitive to accumulating
+        // errors. Only doing it in the edge cases is much more robust.
+        let dur = if t_start <= t && t + dwell <= t_end {
+            dwell
+        } else {
+            // Clamp the sample intervall to the integration intervall
+            let t0 = f32::max(t_start, t);
+            let t1 = f32::min(t_end, t + dwell);
+            t1 - t0
+        };
+
+        integrated += shape.0[i] * dur;
+    }
+
+    integrated
 }
