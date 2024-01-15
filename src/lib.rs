@@ -4,6 +4,12 @@
 //! sequence but a series of functions to sample it. This makes the usesrs of
 //! this API independent of implementation details of, e.g. pulseq.
 
+// TODO: Everything here and in the pulseq-rs crate should use f64!
+// Individual samples can go down to sub-microsecond scale while sequence durations
+// often are in seconds or minutes. Single-precision f32 is not sufficient in the
+// general case. It probably is enough for simulation with absolute times, but
+// errors accumulate too quickly when generating sequences -> use double precision!
+
 use pulseq_rs::{Gradient, Shape};
 
 use crate::util::Rotation;
@@ -134,18 +140,17 @@ impl Sequence {
                 Poi::GradientStart => todo!(),
                 Poi::GradientSample => todo!(),
                 Poi::GradientEnd => todo!(),
-                Poi::AdcStart => todo!(),
+                Poi::AdcStart => block.adc.as_ref().map(|adc| block.t_start + adc.delay),
                 Poi::AdcSample => block.adc.as_ref().map(|adc| {
                     // Get the index of the next pulse sample
-                    let index =
-                        ((t_start - block.t_start - adc.delay) / adc.dwell - 0.5).ceil();
+                    let index = ((t_start - block.t_start - adc.delay) / adc.dwell - 0.5).ceil();
                     // Clip to the actual number of samples. If the result is before
                     // t_start, it is handled by the check below.
                     let index = (index as usize).min(adc.num as usize - 1);
                     // Convert back to time
                     block.t_start + adc.delay + (index as f32 + 0.5) * adc.dwell
                 }),
-                Poi::AdcEnd => todo!(),
+                Poi::AdcEnd => block.adc.as_ref().map(|adc| block.t_start + adc.duration()),
             };
             // Only return the POI if it's actually after t_start
             if let Some(t) = t {

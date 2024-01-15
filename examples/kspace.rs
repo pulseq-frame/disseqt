@@ -17,7 +17,7 @@ fn main() {
         kspace.push(Vec::new());
         let line = kspace.last_mut().unwrap();
 
-        let rep_end = seq.next(pulse_end + 1e-7, Poi::PulseStart).unwrap_or(seq.duration());
+        let rep_end = seq.next(pulse_end + 1e-7, Poi::AdcEnd).unwrap();
         while let Some(next_adc) = seq.next(t, Poi::AdcSample) {
             if next_adc > rep_end {
                 break;
@@ -33,7 +33,7 @@ fn main() {
         }
     }
 
-    // TODO: k-coordinates don't seem to be correct -> investigate!
+    // TODO: kx-coordinates don't seem to be correct -> investigate!
     let kx: Vec<f32> = kspace[0].iter().map(|(x, _)| *x).collect();
     let ky: Vec<f32> = kspace.iter().map(|line| line[0].1).collect();
     println!("{kx:?}");

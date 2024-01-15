@@ -19,7 +19,7 @@ fn main() {
     }
     println!("First pulse: [{t_start}..{t_end}] s, {sample_count} samples");
 
-    // Sample and plot the pulse
+    // Sample the pulse
     let plot_width = 50;
     let plot_height = 30;
     let mut samples = Vec::new();
@@ -31,6 +31,8 @@ fn main() {
         let (pulse, _, _) = seq.sample(t);
         samples.push(pulse.amplitude * pulse.phase.cos());
     }
+
+    // Plotting code
     let min = samples
         .iter()
         .cloned()
