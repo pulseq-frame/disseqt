@@ -74,6 +74,22 @@ pub struct GradientMoment {
     pub gz: f32,
 }
 
+/// Used for Block::Gradient(channel)
+#[derive(Debug, Clone, Copy)]
+pub enum GradientChannel {
+    X,
+    Y,
+    Z,
+}
+
+/// Used to fetch the next POI or block time span of the given type.
+#[derive(Debug, Clone, Copy)]
+pub enum EventType {
+    RfPulse,
+    Adc,
+    Gradient(GradientChannel),
+}
+
 /// Point of Interest: Sequences are continuous in time, arbitary time points
 /// can be sampled and arbitrary time periods can be integrated over. Some time
 /// points are still of special interest, like ADC samples, RF Pulse start and
@@ -111,8 +127,40 @@ impl Sequence {
         self.0.blocks.iter().map(|b| b.duration).sum()
     }
 
+    pub fn next_block(&self, t_start: f32, ty: EventType) -> Option<(f32, f32)> {
+        for block in &self.0.blocks {
+            if t_start > block.t_start + block.duration {
+                // If the start time is after this block, it can't be the next one
+                continue;
+            }
+
+            let t = match ty {
+                EventType::RfPulse => block
+                    .rf
+                    .as_ref()
+                    .map(|rf| (rf.delay, rf.duration(self.0.time_raster.rf))),
+                EventType::Adc => block.adc.as_ref().map(|adc| (adc.delay, adc.duration())),
+                EventType::Gradient(channel) => match channel {
+                    GradientChannel::X => block.gx.as_ref(),
+                    GradientChannel::Y => block.gy.as_ref(),
+                    GradientChannel::Z => block.gz.as_ref(),
+                }
+                .map(|grad| (grad.delay(), grad.duration(self.0.time_raster.grad))),
+            };
+
+            if let Some((delay, dur)) = t {
+                if block.t_start + delay >= t_start {
+                    return Some((block.t_start + delay, block.t_start + dur));
+                }
+            }
+        }
+
+        None
+    }
+
     /// Return the next Point of Interest of the given type after the given
     /// point in time. Returns `None` if there is none.
+    #[deprecated(note = "use current_block and next_block instead")]
     pub fn next(&self, t_start: f32, poi: Poi) -> Option<f32> {
         // TODO: Performance can be improved by using binary search.
         for block in &self.0.blocks {

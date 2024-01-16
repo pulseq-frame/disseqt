@@ -1,4 +1,4 @@
-use disseqt::{Poi, Sequence};
+use disseqt::{EventType, Poi, Sequence};
 
 fn main() {
     let source = std::fs::read_to_string("examples/gre.seq").unwrap();
@@ -7,9 +7,8 @@ fn main() {
     let mut kspace: Vec<Vec<(f32, f32)>> = Vec::new();
     let mut t = 0.0;
 
-    while let Some(pulse_start) = seq.next(t, Poi::PulseStart) {
+    while let Some((pulse_start, pulse_end)) = seq.next_block(t, EventType::RfPulse) {
         // Start integrating at the center of the pulse
-        let pulse_end = seq.next(pulse_start, Poi::PulseEnd).unwrap();
         t = (pulse_start + pulse_end) / 2.0;
 
         let mut kx = 0.0;
@@ -17,9 +16,9 @@ fn main() {
         kspace.push(Vec::new());
         let line = kspace.last_mut().unwrap();
 
-        let rep_end = seq.next(pulse_end + 1e-7, Poi::AdcEnd).unwrap();
+        let (_, adc_end) = seq.next_block(t, EventType::Adc).unwrap();
         while let Some(next_adc) = seq.next(t, Poi::AdcSample) {
-            if next_adc > rep_end {
+            if next_adc > adc_end {
                 break;
             }
 

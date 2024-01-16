@@ -1,11 +1,10 @@
-use disseqt::{Poi, Sequence};
+use disseqt::{EventType, Poi, Sequence};
 
 fn main() {
     let source = std::fs::read_to_string("examples/gre.seq").unwrap();
     let seq = Sequence::from_pulseq_file(&source).unwrap();
 
-    let t_start = seq.next(0.0, Poi::PulseStart).unwrap();
-    let t_end = seq.next(0.0, Poi::PulseEnd).unwrap(); // / 10.0;
+    let (t_start, t_end) = seq.next_block(0.0, EventType::RfPulse).unwrap();
 
     let mut t = t_start;
     let mut sample_count = 0;
