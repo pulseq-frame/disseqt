@@ -1,4 +1,4 @@
-use disseqt::{EventType, Poi, Sequence};
+use disseqt::{EventType, Sequence};
 
 fn main() {
     let source = std::fs::read_to_string("examples/gre.seq").unwrap();
@@ -8,7 +8,7 @@ fn main() {
 
     let mut t = t_start;
     let mut sample_count = 0;
-    while let Some(t_sample) = seq.next(t, Poi::PulseSample) {
+    while let Some(t_sample) = seq.next_poi(t, EventType::RfPulse) {
         if t_sample > t_end {
             break;
         } else {

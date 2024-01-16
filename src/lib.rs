@@ -90,25 +90,6 @@ pub enum EventType {
     Gradient(GradientChannel),
 }
 
-/// Point of Interest: Sequences are continuous in time, arbitary time points
-/// can be sampled and arbitrary time periods can be integrated over. Some time
-/// points are still of special interest, like ADC samples, RF Pulse start and
-/// end or the vertices (samples) of a trapezoidal gradient. The `Poi` struct
-/// contains the names for those time points, which can be used in
-/// `Sequence::next` to fetch them.
-#[derive(Debug, Clone, Copy)]
-pub enum Poi {
-    PulseStart,
-    PulseSample,
-    PulseEnd,
-    GradientStart,
-    GradientSample,
-    GradientEnd,
-    AdcStart,
-    AdcSample,
-    AdcEnd,
-}
-
 /// A MRI-Sequence black box. The inner structure of the sequence is hidden and
 /// might even change in the future if other inputs than pulseq are supported.
 /// Use the provided methods to sample and convert the sequence into any format.
@@ -130,7 +111,7 @@ impl Sequence {
     pub fn next_block(&self, t_start: f32, ty: EventType) -> Option<(f32, f32)> {
         for block in &self.0.blocks {
             if t_start > block.t_start + block.duration {
-                // If the start time is after this block, it can't be the next one
+                // This can't be the next block if t_start is after it ends
                 continue;
             }
 
@@ -158,52 +139,78 @@ impl Sequence {
         None
     }
 
-    /// Return the next Point of Interest of the given type after the given
-    /// point in time. Returns `None` if there is none.
-    #[deprecated(note = "use current_block and next_block instead")]
-    pub fn next(&self, t_start: f32, poi: Poi) -> Option<f32> {
-        // TODO: Performance can be improved by using binary search.
+    /// Returns the next Point of Interest. The internal structure of the sequence is
+    /// intentionally hidden, which might be a bit annoying but means that applications
+    /// using disseqt will work with any sequence, even if file formats update or
+    /// additional file formats are implemented etc.
+    /// A POI is a point where the given event type changes - this is usually _in between_
+    /// samples - so you want to either integrate from one POI to the next or sample
+    /// exactly between two (or do multiple samples if they are too far apart).
+    /// For continuously changing things (maybe we support analytical definitions in the
+    /// future?) the next POI might always equal t_start, so you should not try to always
+    /// handle every single POI.
+    pub fn next_poi(&self, t_start: f32, ty: EventType) -> Option<f32> {
         for block in &self.0.blocks {
-            // We are too early and try beginning with the next block
             if t_start > block.t_start + block.duration {
+                // POI can't be in this block if t_start is after it ends.
                 continue;
             }
 
-            let t = match poi {
-                Poi::PulseStart => block.rf.as_ref().map(|rf| block.t_start + rf.delay),
-                Poi::PulseSample => block.rf.as_ref().map(|rf| {
-                    // Get the index of the next pulse sample
-                    let index =
-                        ((t_start - block.t_start - rf.delay) / self.0.time_raster.rf - 0.5).ceil();
-                    // Clip to the actual number of samples. If the result is before
-                    // t_start, it is handled by the check below.
-                    let index = (index as usize).min(rf.amp_shape.0.len() - 1);
-                    // Convert back to time
-                    block.t_start + rf.delay + (index as f32 + 0.5) * self.0.time_raster.rf
+            // We sample in between samples, so for e.g., a shape of len=10
+            // there will be 0..=10 -> 11 samples.
+            let t = t_start - block.t_start;
+            let t = match ty {
+                EventType::RfPulse => block.rf.as_ref().map(|rf| {
+                    let idx = ((t - rf.delay) / self.0.time_raster.rf)
+                        .clamp(0.0, rf.amp_shape.0.len() as f32)
+                        .ceil();
+                    rf.delay + idx * self.0.time_raster.rf
                 }),
-                Poi::PulseEnd => block
-                    .rf
-                    .as_ref()
-                    .map(|rf| block.t_start + rf.duration(self.0.time_raster.rf)),
-                Poi::GradientStart => todo!(),
-                Poi::GradientSample => todo!(),
-                Poi::GradientEnd => todo!(),
-                Poi::AdcStart => block.adc.as_ref().map(|adc| block.t_start + adc.delay),
-                Poi::AdcSample => block.adc.as_ref().map(|adc| {
-                    // Get the index of the next pulse sample
-                    let index = ((t_start - block.t_start - adc.delay) / adc.dwell - 0.5).ceil();
-                    // Clip to the actual number of samples. If the result is before
-                    // t_start, it is handled by the check below.
-                    let index = (index as usize).min(adc.num as usize - 1);
-                    // Convert back to time
-                    block.t_start + adc.delay + (index as f32 + 0.5) * adc.dwell
+                EventType::Adc => block.adc.as_ref().map(|adc| {
+                    // Here we actually sample in the centers instead of edges because
+                    // well, that's where the ADC samples are!
+                    let idx = ((t - adc.delay) / adc.dwell - 0.5)
+                        .clamp(0.0, adc.num as f32 - 1.0)
+                        .ceil();
+                    adc.delay + (idx + 0.5) * adc.dwell
                 }),
-                Poi::AdcEnd => block.adc.as_ref().map(|adc| block.t_start + adc.duration()),
+                EventType::Gradient(channel) => match channel {
+                    GradientChannel::X => block.gx.as_ref(),
+                    GradientChannel::Y => block.gy.as_ref(),
+                    GradientChannel::Z => block.gz.as_ref(),
+                }
+                .map(|grad| match grad.as_ref() {
+                    Gradient::Free { delay, shape, .. } => {
+                        let idx = ((t - delay) / self.0.time_raster.grad)
+                            .clamp(0.0, shape.0.len() as f32)
+                            .ceil();
+                        delay + idx * self.0.time_raster.grad
+                    }
+                    &Gradient::Trap {
+                        rise,
+                        flat,
+                        fall,
+                        delay,
+                        ..
+                    } => {
+                        // The four vertices of the trap are its POIs
+                        if t < delay {
+                            delay
+                        } else if t < rise {
+                            delay + rise
+                        } else if t < rise + flat {
+                            delay + rise + flat
+                        } else {
+                            // No if bc. of check below and mandatory else branch
+                            delay + rise + flat + fall
+                        }
+                    }
+                }),
             };
-            // Only return the POI if it's actually after t_start
+
             if let Some(t) = t {
-                if t >= t_start {
-                    return Some(t);
+                if t + block.t_start > t_start {
+                    return Some(t + block.t_start);
                 }
             }
         }

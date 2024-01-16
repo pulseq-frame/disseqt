@@ -1,4 +1,4 @@
-use disseqt::{EventType, Poi, Sequence};
+use disseqt::{EventType, Sequence};
 
 fn main() {
     let source = std::fs::read_to_string("examples/gre.seq").unwrap();
@@ -17,7 +17,7 @@ fn main() {
         let line = kspace.last_mut().unwrap();
 
         let (_, adc_end) = seq.next_block(t, EventType::Adc).unwrap();
-        while let Some(next_adc) = seq.next(t, Poi::AdcSample) {
+        while let Some(next_adc) = seq.next_poi(t, EventType::Adc) {
             if next_adc > adc_end {
                 break;
             }
