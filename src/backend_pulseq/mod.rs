@@ -113,7 +113,7 @@ impl Sequence for PulseqSequence {
             };
 
             if let Some(t) = t {
-                if t + block.t_start > t_start {
+                if t + block.t_start >= t_start {
                     return Some(t + block.t_start);
                 }
             }

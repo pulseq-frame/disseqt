@@ -15,7 +15,7 @@ fn main() {
             sample_count += 1;
         }
     }
-    println!("First pulse: [{t_start}..{t_end}] s, {sample_count} samples");
+    println!("First pulse: [{t_start}..{t_end}] s, {sample_count} POIs");
 
     // Sample the pulse
     let plot_width = 50;
