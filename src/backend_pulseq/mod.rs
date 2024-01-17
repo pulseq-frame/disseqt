@@ -1,7 +1,6 @@
 use std::path::Path;
 
-use crate::util;
-use crate::{frontend::Sequence, types::*};
+use crate::{types::*, util, Sequence};
 use pulseq_rs::Gradient;
 
 mod helpers;
