@@ -1,8 +1,7 @@
-use disseqt::{EventType, Sequence};
+use disseqt::EventType;
 
 fn main() {
-    let source = std::fs::read_to_string("examples/gre.seq").unwrap();
-    let seq = Sequence::from_pulseq_file(&source).unwrap();
+    let seq = disseqt::load_pulseq("examples/gre.seq").unwrap();
 
     let (t_start, t_end) = seq.next_block(0.0, EventType::RfPulse).unwrap();
 
