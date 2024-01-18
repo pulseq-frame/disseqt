@@ -9,6 +9,7 @@ pub struct PulseqSequence {
     // elements contain block start time
     pub blocks: Vec<(f32, pulseq_rs::Block)>,
     pub raster: pulseq_rs::TimeRaster,
+    pub fov: Option<(f32, f32, f32)>,
 }
 
 impl PulseqSequence {
@@ -23,15 +24,37 @@ impl PulseqSequence {
                 Some((tmp, block))
             })
             .collect();
+        // We could check for e.g. lower case fov and if definition is in mm
+        let fov = seq
+            .fov
+            .or_else(|| seq.definitions.get("FOV").and_then(|s| parse_fov(s)));
 
         Ok(Self {
             blocks,
             raster: seq.time_raster,
+            fov
         })
     }
 }
 
+fn parse_fov(s: &str) -> Option<(f32, f32, f32)> {
+    let splits: Vec<_> = s.split_whitespace().collect();
+    if splits.len() == 3 {
+        Some((
+            splits[0].parse().ok()?,
+            splits[1].parse().ok()?,
+            splits[2].parse().ok()?,
+        ))
+    } else {
+        None
+    }
+}
+
 impl Sequence for PulseqSequence {
+    fn fov(&self) -> Option<(f32, f32, f32)> {
+        self.fov
+    }
+
     fn duration(&self) -> f32 {
         self.blocks.iter().map(|(_, b)| b.duration).sum()
     }

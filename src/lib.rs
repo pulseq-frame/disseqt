@@ -22,6 +22,9 @@ pub fn load_pulseq<P: AsRef<Path>>(path: P) -> Result<Box<dyn Sequence>, pulseq_
 }
 
 pub trait Sequence: Send {
+    /// Return the FOV of the Sequence, if available
+    fn fov(&self) -> Option<(f32, f32, f32)>;
+
     /// Duration of the MRI sequence: no samples, blocks, etc. exist outside
     /// of the time range [0, duration()]
     fn duration(&self) -> f32;

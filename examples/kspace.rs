@@ -2,6 +2,7 @@ use disseqt::EventType;
 
 fn main() {
     let seq = disseqt::load_pulseq("examples/gre.seq").unwrap();
+    let fov = seq.fov().unwrap_or((1.0, 1.0, 1.0));
 
     let mut kspace: Vec<Vec<(f32, f32)>> = Vec::new();
     let mut t = 0.0;
@@ -24,9 +25,8 @@ fn main() {
             let (_, grad) = seq.integrate(t, next_adc);
             t = next_adc;
 
-            // TODO: allow to extract FOV from seq if available
-            kx += grad.gx * 0.256;
-            ky += grad.gy * 0.256;
+            kx += grad.gx * fov.0;
+            ky += grad.gy * fov.1;
             line.push((kx, ky));
         }
     }
