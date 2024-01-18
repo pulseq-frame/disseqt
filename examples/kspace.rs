@@ -16,13 +16,13 @@ fn main() {
         let line = kspace.last_mut().unwrap();
 
         let (_, adc_end) = seq.next_block(t, EventType::Adc).unwrap();
-        while let Some(next_adc) = seq.next_poi(t, EventType::Adc) {
+        while let Some(next_adc) = seq.next_poi(t + 1e-6, EventType::Adc) {
             if next_adc > adc_end {
                 break;
             }
 
             let (_, grad) = seq.integrate(t, next_adc);
-            t = next_adc + 1e-6;
+            t = next_adc;
 
             // TODO: allow to extract FOV from seq if available
             kx += grad.gx * 0.256;
