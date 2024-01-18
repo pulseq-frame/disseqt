@@ -37,12 +37,15 @@ impl Sequence for PulseqSequence {
     }
 
     fn next_block(&self, t_start: f32, ty: EventType) -> Option<(f32, f32)> {
-        for (block_start, block) in &self.blocks {
-            if t_start > block_start + block.duration {
-                // This can't be the next block if t_start is after it ends
-                continue;
-            }
+        let idx_start = match self
+            .blocks
+            .binary_search_by(|(block_start, _)| block_start.total_cmp(&t_start))
+        {
+            Ok(idx) => idx,             // start with the exact match
+            Err(idx) => idx.max(1) - 1, // start before the insertion point
+        };
 
+        for (block_start, block) in &self.blocks[idx_start..] {
             let t = match ty {
                 EventType::RfPulse => block
                     .rf
@@ -68,12 +71,15 @@ impl Sequence for PulseqSequence {
     }
 
     fn next_poi(&self, t_start: f32, ty: EventType) -> Option<f32> {
-        for (block_start, block) in &self.blocks {
-            if t_start > block_start + block.duration {
-                // POI can't be in this block if t_start is after it ends.
-                continue;
-            }
+        let idx_start = match self
+            .blocks
+            .binary_search_by(|(block_start, _)| block_start.total_cmp(&t_start))
+        {
+            Ok(idx) => idx,             // start with the exact match
+            Err(idx) => idx.max(1) - 1, // start before the insertion point
+        };
 
+        for (block_start, block) in &self.blocks[idx_start..] {
             // We sample in between samples, so for e.g., a shape of len=10
             // there will be 0..=10 -> 11 samples.
             let t = t_start - block_start;
@@ -143,23 +149,20 @@ impl Sequence for PulseqSequence {
             .blocks
             .binary_search_by(|(block_start, _)| block_start.total_cmp(&t_start))
         {
-            Ok(idx) => idx,             // start searching beginning with the exact match
-            Err(idx) => idx.max(1) - 1, // start searching before the insertion point
-        };
-        let idx_end = match self
-            .blocks
-            .binary_search_by(|(block_start, _)| block_start.total_cmp(&t_end))
-        {
-            Ok(idx) => idx,  // end searching before the exact match
-            Err(idx) => idx, // end searching before the insertion point
+            Ok(idx) => idx,             // start with the exact match
+            Err(idx) => idx.max(1) - 1, // start before the insertion point
         };
 
+        let mut spin = util::Spin::relaxed();
         let mut grad = GradientMoment {
             gx: 0.0,
             gy: 0.0,
             gz: 0.0,
         };
-        for (block_start, block) in &self.blocks[idx_start..idx_end] {
+        for (block_start, block) in &self.blocks[idx_start..] {
+            if *block_start >= t_end {
+                break;
+            }
             if let Some(gx) = block.gx.as_ref() {
                 grad.gx += helpers::integrate_grad(
                     gx.as_ref(),
@@ -187,41 +190,8 @@ impl Sequence for PulseqSequence {
                     self.raster.grad,
                 );
             }
-        }
-
-        let mut spin = util::Spin::relaxed();
-        for (block_start, block) in &self.blocks[idx_start..idx_end] {
-            let Some(rf) = &block.rf else { continue };
-
-            for i in 0..rf.amp_shape.0.len() {
-                let dwell = self.raster.rf;
-                // Start time of the sample number i
-                let t = block_start + rf.delay + i as f32 * dwell;
-
-                // Skip samples before t_start, quit when reaching t_end
-                if t + dwell < t_start {
-                    continue;
-                }
-                if t_end <= t {
-                    break;
-                }
-
-                // We could do the clamping for all samples, but when integrating
-                // over many samples, it seems to be very sensitive to accumulating
-                // errors. Only doing it in the edge cases is much more robust.
-                let dur = if t_start <= t && t + dwell <= t_end {
-                    dwell
-                } else {
-                    // Clamp the sample intervall to the integration intervall
-                    let t0 = f32::max(t_start, t);
-                    let t1 = f32::min(t_end, t + dwell);
-                    t1 - t0
-                };
-
-                spin *= util::Rotation::new(
-                    rf.amp * rf.amp_shape.0[i] * dur * std::f32::consts::TAU,
-                    rf.phase + rf.phase_shape.0[i] * std::f32::consts::TAU,
-                );
+            if let Some(rf) = block.rf.as_ref() {
+                helpers::integrate_rf(rf, &mut spin, t_start, t_end, *block_start, self.raster.rf);
             }
         }
 

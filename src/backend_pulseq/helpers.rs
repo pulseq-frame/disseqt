@@ -1,4 +1,6 @@
-use pulseq_rs::{Gradient, Shape};
+use pulseq_rs::{Gradient, Rf, Shape};
+
+use crate::util::{Spin, Rotation};
 
 pub fn integrate_grad(
     gx: &Gradient,
@@ -31,6 +33,48 @@ pub fn integrate_grad(
                 *fall,
             )
         }
+    }
+}
+
+// TODO: change spin + rotation matrix to a unified rotation struct (matrix or quaternion etc.)
+// that is returned from this function
+pub fn integrate_rf(
+    rf: &Rf,
+    spin: &mut Spin,
+    t_start: f32,
+    t_end: f32,
+    block_start: f32,
+    rf_raster: f32,
+) {
+    for i in 0..rf.amp_shape.0.len() {
+        let dwell = rf_raster;
+        // Start time of the sample number i
+        let t = block_start + rf.delay + i as f32 * dwell;
+
+        // Skip samples before t_start, quit when reaching t_end
+        if t + dwell < t_start {
+            continue;
+        }
+        if t_end <= t {
+            break;
+        }
+
+        // We could do the clamping for all samples, but when integrating
+        // over many samples, it seems to be very sensitive to accumulating
+        // errors. Only doing it in the edge cases is much more robust.
+        let dur = if t_start <= t && t + dwell <= t_end {
+            dwell
+        } else {
+            // Clamp the sample intervall to the integration intervall
+            let t0 = f32::max(t_start, t);
+            let t1 = f32::min(t_end, t + dwell);
+            t1 - t0
+        };
+
+        *spin *= Rotation::new(
+            rf.amp * rf.amp_shape.0[i] * dur * std::f32::consts::TAU,
+            rf.phase + rf.phase_shape.0[i] * std::f32::consts::TAU,
+        );
     }
 }
 
