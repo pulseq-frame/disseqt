@@ -3,11 +3,11 @@ use disseqt::EventType;
 fn main() {
     let seq = disseqt::load_pulseq("examples/gre.seq").unwrap();
 
-    let (t_start, t_end) = seq.next_block(0.0, EventType::RfPulse).unwrap();
+    let (t_start, t_end) = seq.encounter(0.0, EventType::RfPulse).unwrap();
 
     let mut t = t_start;
     let mut sample_count = 0;
-    while let Some(t_sample) = seq.next_poi(t, EventType::RfPulse) {
+    while let Some(t_sample) = seq.next_event(t, EventType::RfPulse) {
         if t_sample > t_end {
             break;
         } else {
@@ -15,7 +15,7 @@ fn main() {
             sample_count += 1;
         }
     }
-    println!("First pulse: [{t_start}..{t_end}] s, {sample_count} POIs");
+    println!("First pulse: [{t_start}..{t_end}] s, {sample_count} Events");
 
     // Sample the pulse
     let plot_width = 50;
@@ -26,8 +26,8 @@ fn main() {
         let t = (t as f32 + 0.5) / plot_width as f32;
         let t = t_start + (t_end - t_start) * t;
 
-        let (pulse, _, _) = seq.sample(t);
-        samples.push(pulse.amplitude * pulse.phase.cos());
+        let sample = seq.sample_one(t);
+        samples.push(sample.pulse.amplitude * sample.pulse.phase.cos());
     }
 
     // Plotting code

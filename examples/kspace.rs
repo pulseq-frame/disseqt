@@ -7,7 +7,7 @@ fn main() {
     let mut kspace: Vec<Vec<(f32, f32)>> = Vec::new();
     let mut t = 0.0;
 
-    while let Some((pulse_start, pulse_end)) = seq.next_block(t, EventType::RfPulse) {
+    while let Some((pulse_start, pulse_end)) = seq.encounter(t, EventType::RfPulse) {
         // Start integrating at the center of the pulse
         t = (pulse_start + pulse_end) / 2.0;
 
@@ -16,17 +16,17 @@ fn main() {
         kspace.push(Vec::new());
         let line = kspace.last_mut().unwrap();
 
-        let (_, adc_end) = seq.next_block(t, EventType::Adc).unwrap();
-        while let Some(next_adc) = seq.next_poi(t + 1e-6, EventType::Adc) {
+        let (_, adc_end) = seq.encounter(t, EventType::Adc).unwrap();
+        while let Some(next_adc) = seq.next_event(t + 1e-6, EventType::Adc) {
             if next_adc > adc_end {
                 break;
             }
 
-            let (_, grad) = seq.integrate(t, next_adc);
+            let moment = seq.integrate_one(t, next_adc);
             t = next_adc;
 
-            kx += grad.gx * fov.0;
-            ky += grad.gy * fov.1;
+            kx += moment.gradient.gx * fov.0;
+            ky += moment.gradient.gy * fov.1;
             line.push((kx, ky));
         }
     }

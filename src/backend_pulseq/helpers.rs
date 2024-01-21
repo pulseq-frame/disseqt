@@ -1,6 +1,6 @@
 use pulseq_rs::{Gradient, Rf, Shape};
 
-use crate::util::{Spin, Rotation};
+use crate::util::{Rotation, Spin};
 
 pub fn integrate_grad(
     gx: &Gradient,
@@ -130,7 +130,7 @@ pub fn integrate_free(t_start: f32, t_end: f32, shape: &Shape, dwell: f32) -> f3
         let t = i as f32 * dwell;
 
         // Skip samples before t_start, quit when reaching t_end
-        if t + dwell < t_start {
+        if t + dwell <= t_start {
             continue;
         }
         if t_end <= t {

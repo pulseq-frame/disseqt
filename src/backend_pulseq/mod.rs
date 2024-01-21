@@ -1,6 +1,6 @@
-use std::{path::Path, ops::RangeBounds};
+use std::path::Path;
 
-use crate::{types::*, util, Sequence};
+use crate::{types::*, util, Backend};
 use pulseq_rs::Gradient;
 
 mod helpers;
@@ -32,7 +32,7 @@ impl PulseqSequence {
         Ok(Self {
             blocks,
             raster: seq.time_raster,
-            fov
+            fov,
         })
     }
 }
@@ -50,7 +50,7 @@ fn parse_fov(s: &str) -> Option<(f32, f32, f32)> {
     }
 }
 
-impl Sequence for PulseqSequence {
+impl Backend for PulseqSequence {
     fn fov(&self) -> Option<(f32, f32, f32)> {
         self.fov
     }
@@ -59,7 +59,27 @@ impl Sequence for PulseqSequence {
         self.blocks.iter().map(|(_, b)| b.duration).sum()
     }
 
-    fn next_block(&self, t_start: f32, ty: EventType) -> Option<(f32, f32)> {
+    fn events(&self, ty: EventType, t_start: f32, t_end: f32, max_count: usize) -> Vec<f32> {
+        // NOTE: The indirection by using a trait object seems to be neglectable in terms of
+        // performance, although it makes the API a bit worse, as the time range that is
+        // usually only constructed for the function call now needs a reference.
+        let mut t = t_start;
+        let mut pois = Vec::new();
+        // TODO: this currently is based on the PulseqSequence::next_poi function.
+        // Replace with a more efficient impl that directly fetches a list of samples
+        while let Some(t_next) = self.next_poi(t, ty) {
+            // Important: make t_end exclusive so we don't need to advance by some small value
+            if t_next >= t_end || pois.len() >= max_count {
+                break;
+            }
+            pois.push(t_next);
+            t = t_next + 1e-6;
+        }
+
+        pois
+    }
+
+    fn encounter(&self, t_start: f32, ty: EventType) -> Option<(f32, f32)> {
         let idx_start = match self
             .blocks
             .binary_search_by(|(block_start, _)| block_start.total_cmp(&t_start))
@@ -93,6 +113,34 @@ impl Sequence for PulseqSequence {
         None
     }
 
+    fn integrate(&self, time: &[f32]) -> Vec<Moment> {
+        let mut moments = Vec::new();
+        for t in time.windows(2) {
+            let (pulse, gradient) = self.integrate(t[0], t[1]);
+            moments.push(Moment { pulse, gradient });
+        }
+        moments
+    }
+
+    fn sample(&self, time: &[f32]) -> Vec<Sample> {
+        time.into_iter()
+            .map(|t| {
+                let (pulse, gradient, adc) = self.sample(*t);
+                Sample {
+                    pulse,
+                    gradient,
+                    adc,
+                }
+            })
+            .collect()
+    }
+}
+
+// The old, inefficient single-element methods are moved into this impl block,
+// the trait implementation just loops over it.
+// TODO: replace with code that effectively implements the function signatures
+// given by the Sequence trait
+impl PulseqSequence {
     fn next_poi(&self, t_start: f32, ty: EventType) -> Option<f32> {
         let idx_start = match self
             .blocks

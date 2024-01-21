@@ -18,17 +18,17 @@ fn import_pulseq(path: &str) -> mr0::Sequence {
 
     let fov = parser.fov().unwrap_or((1.0, 1.0, 1.0));
 
-    while let Some((pulse_start, pulse_end)) = parser.next_block(t, EventType::RfPulse) {
+    while let Some((pulse_start, pulse_end)) = parser.encounter(t, EventType::RfPulse) {
         let rep_start = (pulse_start + pulse_end) / 2.0;
 
         // Calculate end of repetition
-        let rep_end = match parser.next_block(pulse_end, EventType::RfPulse) {
+        let rep_end = match parser.encounter(pulse_end, EventType::RfPulse) {
             Some((start, end)) => (start + end) / 2.0,
             None => parser.duration(),
         };
 
         // Get all ADC sample times
-        let adc_times = parser.pois(&(rep_start..rep_end), EventType::Adc);
+        let adc_times = parser.events(EventType::Adc, rep_start, rep_end, usize::MAX);
         if let Some(last_sample) = adc_times.last() {
             t = *last_sample;
         }
@@ -36,10 +36,10 @@ fn import_pulseq(path: &str) -> mr0::Sequence {
         // Now build the mr0 repetition
 
         let rep = seq.new_rep(adc_times.len() + 1);
-        let (pulse_moment, _) = parser.integrate(pulse_start, pulse_end);
-        rep.pulse.angle = pulse_moment.angle;
-        rep.pulse.phase = pulse_moment.phase;
-        rep.pulse.usage = pulse_usage(pulse_moment.angle);
+        let moment = parser.integrate_one(pulse_start, pulse_end);
+        rep.pulse.angle = moment.pulse.angle;
+        rep.pulse.phase = moment.pulse.phase;
+        rep.pulse.usage = pulse_usage(moment.pulse.angle);
 
         let abs_times: Vec<f32> = std::iter::once(&rep_start)
             .chain(adc_times.iter())
@@ -50,8 +50,8 @@ fn import_pulseq(path: &str) -> mr0::Sequence {
         // NEW: using the new API, we don't need to call these functions for every
         // single time step, but only once. They also could be optimized internally
         // to avoid recalculating everything for every single sample.
-        let moments = parser.integrate_n(&abs_times);
-        let samples = parser.sample_n(&adc_times);
+        let moments = parser.integrate(&abs_times);
+        let samples = parser.sample(&adc_times);
 
         // With the new API, these loops could probably be simplified
         for i in 0..abs_times.len() - 1 {
