@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, ops::RangeBounds};
 
 use crate::{types::*, util, Sequence};
 use pulseq_rs::Gradient;
@@ -114,7 +114,7 @@ impl Sequence for PulseqSequence {
                     rf.delay + idx * self.raster.rf
                 }),
                 EventType::Adc => block.adc.as_ref().map(|adc| {
-                    // Here we actually sample in the centers instead of edges because
+                    // Here we actually sample in the centers instead of edges because,
                     // well, that's where the ADC samples are!
                     let idx = ((t - adc.delay) / adc.dwell - 0.5)
                         .clamp(0.0, adc.num as f32 - 1.0)

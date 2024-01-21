@@ -1,4 +1,5 @@
 /// Contains the RF Pulse state for a single point in time.
+/// TODO: Look into if we should universally use Pulse, RfPulse or Rf
 #[derive(Default, Debug, Clone, Copy)]
 pub struct PulseSample {
     /// Unit: `Hz`
@@ -36,8 +37,16 @@ pub enum AdcBlockSample {
     },
 }
 
+/// See `PulseSample`, `GradientSample` and `AdcBlockSample`
+#[derive(Default, Debug, Clone, Copy)]
+pub struct Sample {
+    pub pulse: PulseSample,
+    pub gradient: GradientSample,
+    pub adc: AdcBlockSample,
+}
+
 /// Resulting flip angle by integrating an RF pulse over some time period.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct PulseMoment {
     /// Unit: `rad`
     pub angle: f32,
@@ -46,7 +55,7 @@ pub struct PulseMoment {
 }
 
 /// Resulting gradient moments by integrating gradients over some time period.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct GradientMoment {
     /// Unit: `rad / m`
     pub gx: f32,
@@ -54,6 +63,13 @@ pub struct GradientMoment {
     pub gy: f32,
     /// Unit: `rad / m`
     pub gz: f32,
+}
+
+/// See `PulseMoment` and `GradientMoment`
+#[derive(Default, Debug, Clone, Copy)]
+pub struct Moment {
+    pub pulse: PulseMoment,
+    pub gradient: GradientMoment,
 }
 
 /// Used for Block::Gradient(channel)
