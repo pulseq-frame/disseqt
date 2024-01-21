@@ -26,15 +26,13 @@ pub struct GradientSample {
 /// active (or not) at the particular point in time. Use the sequence POI API
 /// to fetch the ADC sample locations.
 #[derive(Default, Debug, Clone, Copy)]
-pub enum AdcBlockSample {
-    #[default]
-    Inactive,
-    Active {
-        /// Unit: `rad`
-        phase: f32,
-        /// Unit: `Hz`
-        frequency: f32,
-    },
+pub struct AdcBlockSample {
+    /// Specifies if the ADC is active, not if this is an ADC sample
+    pub active: bool,
+    /// Unit: `rad`
+    pub phase: f32,
+    /// Unit: `Hz`
+    pub frequency: f32,
 }
 
 /// See `PulseSample`, `GradientSample` and `AdcBlockSample`

@@ -266,15 +266,16 @@ impl Sequence for PulseqSequence {
             if block_start + adc.delay <= t
                 && t <= block_start + adc.delay + adc.num as f32 * adc.dwell
             {
-                AdcBlockSample::Active {
+                AdcBlockSample {
+                    active: true,
                     phase: adc.phase,
                     frequency: adc.freq,
                 }
             } else {
-                AdcBlockSample::Inactive
+                AdcBlockSample::default()
             }
         } else {
-            AdcBlockSample::Inactive
+            AdcBlockSample::default()
         };
 
         (pulse_sample, GradientSample { x, y, z }, adc_sample)

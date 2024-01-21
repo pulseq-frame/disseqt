@@ -65,14 +65,7 @@ fn import_pulseq(path: &str) -> mr0::Sequence {
                 rep.events[i].adc_usage = 1;
                 // Last event goes to start of next rep, doesn't have an ADC
                 let adc = samples[i].adc;
-                rep.events[i].adc_phase = match adc {
-                    disseqt::AdcBlockSample::Active { phase, .. } => {
-                        std::f32::consts::FRAC_PI_2 - phase
-                    }
-                    disseqt::AdcBlockSample::Inactive => {
-                        unreachable!("Bug: We should only sample time points of ADC samples")
-                    }
-                };
+                rep.events[i].adc_phase = std::f32::consts::FRAC_PI_2 - adc.phase;
             }
         }
     }
