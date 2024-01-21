@@ -226,16 +226,16 @@ impl PulseqSequence {
 
         let mut spin = util::Spin::relaxed();
         let mut grad = GradientMoment {
-            gx: 0.0,
-            gy: 0.0,
-            gz: 0.0,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
         };
         for (block_start, block) in &self.blocks[idx_start..] {
             if *block_start >= t_end {
                 break;
             }
             if let Some(gx) = block.gx.as_ref() {
-                grad.gx += helpers::integrate_grad(
+                grad.x += helpers::integrate_grad(
                     gx.as_ref(),
                     t_start,
                     t_end,
@@ -244,7 +244,7 @@ impl PulseqSequence {
                 );
             }
             if let Some(gy) = block.gy.as_ref() {
-                grad.gy += helpers::integrate_grad(
+                grad.y += helpers::integrate_grad(
                     gy.as_ref(),
                     t_start,
                     t_end,
@@ -253,7 +253,7 @@ impl PulseqSequence {
                 );
             }
             if let Some(gz) = block.gz.as_ref() {
-                grad.gz += helpers::integrate_grad(
+                grad.z += helpers::integrate_grad(
                     gz.as_ref(),
                     t_start,
                     t_end,

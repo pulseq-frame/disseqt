@@ -57,15 +57,17 @@ fn import_pulseq(path: &str) -> mr0::Sequence {
         for i in 0..abs_times.len() - 1 {
             rep.events[i].dur = abs_times[i + 1] - abs_times[i];
 
-            let gradm = moments[i].gradient;
-            rep.events[i].gradm = [gradm.gx * fov.0, gradm.gy * fov.1, gradm.gz * fov.2];
+            rep.events[i].gradm = [
+                moments.gradient.x[i] * fov.0,
+                moments.gradient.y[i] * fov.1,
+                moments.gradient.z[i] * fov.2,
+            ];
 
             // There is no ADC at the end of the last sample
             if i < adc_times.len() {
                 rep.events[i].adc_usage = 1;
                 // Last event goes to start of next rep, doesn't have an ADC
-                let adc = samples[i].adc;
-                rep.events[i].adc_phase = std::f32::consts::FRAC_PI_2 - adc.phase;
+                rep.events[i].adc_phase = std::f32::consts::FRAC_PI_2 - samples.adc.phase[i];
             }
         }
     }

@@ -25,8 +25,8 @@ fn main() {
             let moment = seq.integrate_one(t, next_adc);
             t = next_adc;
 
-            kx += moment.gradient.gx * fov.0;
-            ky += moment.gradient.gy * fov.1;
+            kx += moment.gradient.x * fov.0;
+            ky += moment.gradient.y * fov.1;
             line.push((kx, ky));
         }
     }

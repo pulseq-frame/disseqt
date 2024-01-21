@@ -1,3 +1,10 @@
+//! SoA can have much better performance than AoS, especially in when using py-disseqt
+//! where we need to extract the info in some loop, which can be very slow.
+//! Right now, the implementation is duplicated - maybe there is some better way
+//! of structuring it.
+//! The non-prefixed structs are emitted by the sample_one and integrate_one functions
+//! The ...Vec structs are emitted by sample and integrate.
+
 /// Contains the RF Pulse state for a single point in time.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct RfPulseSample {
@@ -9,6 +16,13 @@ pub struct RfPulseSample {
     pub frequency: f32,
 }
 
+#[derive(Debug, Clone)]
+pub struct RfPulseSampleVec {
+    pub amplitude: Vec<f32>,
+    pub phase: Vec<f32>,
+    pub frequency: Vec<f32>,
+}
+
 /// Contains the gradient amplitudes for a single point in time.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct GradientSample {
@@ -18,6 +32,13 @@ pub struct GradientSample {
     pub y: f32,
     /// Unit: `Hz / m`
     pub z: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct GradientSampleVec {
+    pub x: Vec<f32>,
+    pub y: Vec<f32>,
+    pub z: Vec<f32>,
 }
 
 /// Contains the ADC state for a single point in time. NOTE: this does not
@@ -34,12 +55,34 @@ pub struct AdcBlockSample {
     pub frequency: f32,
 }
 
+#[derive(Debug, Clone)]
+pub struct AdcBlockSampleVec {
+    pub active: Vec<bool>,
+    pub phase: Vec<f32>,
+    pub frequency: Vec<f32>,
+}
+
 /// See `RfPulseSample`, `GradientSample` and `AdcBlockSample`
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Sample {
     pub pulse: RfPulseSample,
     pub gradient: GradientSample,
     pub adc: AdcBlockSample,
+}
+
+#[derive(Debug, Clone)]
+pub struct SampleVec {
+    pub pulse: RfPulseSampleVec,
+    pub gradient: GradientSampleVec,
+    pub adc: AdcBlockSampleVec,
+}
+
+impl SampleVec {
+    pub fn len(&self) -> usize {
+        // TODO: we should check for equal length of all vecs here or on
+        // construction. Maybe use boxed slices to enforce invariance?
+        self.pulse.amplitude.len()
+    }
 }
 
 /// Resulting flip angle by integrating an RF pulse over some time period.
@@ -51,15 +94,28 @@ pub struct RfPulseMoment {
     pub phase: f32,
 }
 
+#[derive(Debug, Clone)]
+pub struct RfPulseMomentVec {
+    pub angle: Vec<f32>,
+    pub phase: Vec<f32>,
+}
+
 /// Resulting gradient moments by integrating gradients over some time period.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct GradientMoment {
     /// Unit: `rad / m`
-    pub gx: f32,
+    pub x: f32,
     /// Unit: `rad / m`
-    pub gy: f32,
+    pub y: f32,
     /// Unit: `rad / m`
-    pub gz: f32,
+    pub z: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct GradientMomentVec {
+    pub x: Vec<f32>,
+    pub y: Vec<f32>,
+    pub z: Vec<f32>,
 }
 
 /// See `RfPulseMoment` and `GradientMoment`
@@ -67,6 +123,12 @@ pub struct GradientMoment {
 pub struct Moment {
     pub pulse: RfPulseMoment,
     pub gradient: GradientMoment,
+}
+
+#[derive(Debug, Clone)]
+pub struct MomentVec {
+    pub pulse: RfPulseMomentVec,
+    pub gradient: GradientMomentVec,
 }
 
 /// Used for Block::Gradient(channel)
