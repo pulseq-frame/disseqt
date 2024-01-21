@@ -1,7 +1,6 @@
 /// Contains the RF Pulse state for a single point in time.
-/// TODO: Look into if we should universally use Pulse, RfPulse or Rf
 #[derive(Default, Debug, Clone, Copy)]
-pub struct PulseSample {
+pub struct RfPulseSample {
     /// Unit: `Hz`
     pub amplitude: f32,
     /// Unit: `rad`
@@ -35,17 +34,17 @@ pub struct AdcBlockSample {
     pub frequency: f32,
 }
 
-/// See `PulseSample`, `GradientSample` and `AdcBlockSample`
+/// See `RfPulseSample`, `GradientSample` and `AdcBlockSample`
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Sample {
-    pub pulse: PulseSample,
+    pub pulse: RfPulseSample,
     pub gradient: GradientSample,
     pub adc: AdcBlockSample,
 }
 
 /// Resulting flip angle by integrating an RF pulse over some time period.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct PulseMoment {
+pub struct RfPulseMoment {
     /// Unit: `rad`
     pub angle: f32,
     /// Unit: `rad`
@@ -63,10 +62,10 @@ pub struct GradientMoment {
     pub gz: f32,
 }
 
-/// See `PulseMoment` and `GradientMoment`
+/// See `RfPulseMoment` and `GradientMoment`
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Moment {
-    pub pulse: PulseMoment,
+    pub pulse: RfPulseMoment,
     pub gradient: GradientMoment,
 }
 

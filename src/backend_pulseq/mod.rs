@@ -213,7 +213,7 @@ impl PulseqSequence {
         None
     }
 
-    fn integrate(&self, t_start: f32, t_end: f32) -> (PulseMoment, GradientMoment) {
+    fn integrate(&self, t_start: f32, t_end: f32) -> (RfPulseMoment, GradientMoment) {
         assert!(t_start < t_end);
 
         let idx_start = match self
@@ -267,7 +267,7 @@ impl PulseqSequence {
         }
 
         (
-            PulseMoment {
+            RfPulseMoment {
                 angle: spin.angle(),
                 phase: spin.phase(),
             },
@@ -275,7 +275,7 @@ impl PulseqSequence {
         )
     }
 
-    fn sample(&self, t: f32) -> (PulseSample, GradientSample, AdcBlockSample) {
+    fn sample(&self, t: f32) -> (RfPulseSample, GradientSample, AdcBlockSample) {
         let block_idx = match self
             .blocks
             .binary_search_by(|(block_start, _)| block_start.total_cmp(&t))
@@ -288,16 +288,16 @@ impl PulseqSequence {
         let pulse_sample = if let Some(rf) = &block.rf {
             let index = ((t - block_start - rf.delay) / self.raster.rf - 0.5).ceil() as usize;
             if index < rf.amp_shape.0.len() {
-                PulseSample {
+                RfPulseSample {
                     amplitude: rf.amp * rf.amp_shape.0[index],
                     phase: rf.phase + rf.phase_shape.0[index] * std::f32::consts::TAU,
                     frequency: rf.freq,
                 }
             } else {
-                PulseSample::default()
+                RfPulseSample::default()
             }
         } else {
-            PulseSample::default()
+            RfPulseSample::default()
         };
 
         let x = block.gx.as_ref().map_or(0.0, |gx| {
