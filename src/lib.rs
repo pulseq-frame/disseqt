@@ -4,13 +4,6 @@
 // general case. It probably is enough for simulation with absolute times, but
 // errors accumulate too quickly when generating sequences -> use double precision!
 
-// TODO: (Evaluate first if this idea is good) the Trait should only contain the
-// functions that return lists of POIs or Samples, which are then implemented by
-// the backend. Functions like load_pulseq then return a wrapper (newtype around
-// Box<dyn Sequence>) that implements functions that only return a single poi etc.
-// This has one advantage: taking e.g. an impl RangeBounds is not trait save, but
-// can be implemented in the wrapper (for time ranges) without problems.
-
 mod backend_pulseq;
 mod sequence;
 mod types;

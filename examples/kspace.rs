@@ -31,7 +31,6 @@ fn main() {
         }
     }
 
-    // TODO: kx-coordinates don't seem to be correct -> investigate!
     let kx: Vec<f32> = kspace[0].iter().map(|(x, _)| *x).collect();
     let ky: Vec<f32> = kspace.iter().map(|line| line[0].1).collect();
     println!("{kx:?}");
