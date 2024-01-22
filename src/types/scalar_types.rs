@@ -1,3 +1,5 @@
+// TODO: implement From trait for the reverse operation (see vector_types)
+
 // sample() types
 
 /// Contains the RF Pulse state for a single point in time.

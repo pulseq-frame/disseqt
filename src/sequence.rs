@@ -16,7 +16,7 @@ impl Sequence {
     pub fn duration(&self) -> f32 {
         self.0.duration()
     }
-
+    /// TODO: EventType should be the first parameter
     pub fn encounter(&self, t_start: f32, ty: EventType) -> Option<(f32, f32)> {
         self.0.encounter(t_start, ty)
     }
@@ -24,7 +24,7 @@ impl Sequence {
     pub fn events(&self, ty: EventType, t_start: f32, t_end: f32, max_count: usize) -> Vec<f32> {
         self.0.events(ty, t_start, t_end, max_count)
     }
-
+    /// TODO: EventType should be the first parameter
     pub fn next_event(&self, t_start: f32, ty: EventType) -> Option<f32> {
         self.events(ty, t_start, f32::INFINITY, 1).last().cloned()
     }

@@ -37,6 +37,7 @@ trait Backend: Send {
     /// Returns the time range of the next encounter of the given type.
     /// If `t_start` is inside of a block, this block is not returned: only
     /// blocks **starting** after (or exactly on) `t_start` are considered.
+    /// TODO: EventType should be the first parameter
     fn encounter(&self, t_start: f32, ty: EventType) -> Option<(f32, f32)>;
 
     /// Samples the sequence at the given time points
