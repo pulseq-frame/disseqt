@@ -23,7 +23,7 @@ fn main() {
     let mut samples = Vec::new();
 
     for t in 0..plot_width {
-        let t = (t as f32 + 0.5) / plot_width as f32;
+        let t = (t as f64 + 0.5) / plot_width as f64;
         let t = t_start + (t_end - t_start) * t;
 
         let sample = seq.sample_one(t);
@@ -43,7 +43,7 @@ fn main() {
         .unwrap();
 
     for i in 0..=plot_height {
-        let y = max - (max - min) * (i as f32 / plot_height as f32);
+        let y = max - (max - min) * (i as f64 / plot_height as f64);
         print!("{y:-8.2} | ");
 
         for &sample in &samples {

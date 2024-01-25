@@ -4,11 +4,11 @@ use crate::util::{Rotation, Spin};
 
 pub fn integrate_grad(
     gx: &Gradient,
-    t_start: f32,
-    t_end: f32,
-    block_start: f32,
-    grad_raster: f32,
-) -> f32 {
+    t_start: f64,
+    t_end: f64,
+    block_start: f64,
+    grad_raster: f64,
+) -> f64 {
     match gx {
         Gradient::Free { amp, delay, shape } => {
             amp * integrate_free(
@@ -41,15 +41,15 @@ pub fn integrate_grad(
 pub fn integrate_rf(
     rf: &Rf,
     spin: &mut Spin,
-    t_start: f32,
-    t_end: f32,
-    block_start: f32,
-    rf_raster: f32,
+    t_start: f64,
+    t_end: f64,
+    block_start: f64,
+    rf_raster: f64,
 ) {
     for i in 0..rf.amp_shape.0.len() {
         let dwell = rf_raster;
         // Start time of the sample number i
-        let t = block_start + rf.delay + i as f32 * dwell;
+        let t = block_start + rf.delay + i as f64 * dwell;
 
         // Skip samples before t_start, quit when reaching t_end
         if t + dwell < t_start {
@@ -66,19 +66,19 @@ pub fn integrate_rf(
             dwell
         } else {
             // Clamp the sample intervall to the integration intervall
-            let t0 = f32::max(t_start, t);
-            let t1 = f32::min(t_end, t + dwell);
+            let t0 = f64::max(t_start, t);
+            let t1 = f64::min(t_end, t + dwell);
             t1 - t0
         };
 
         *spin *= Rotation::new(
-            rf.amp * rf.amp_shape.0[i] * dur * std::f32::consts::TAU,
-            rf.phase + rf.phase_shape.0[i] * std::f32::consts::TAU,
+            rf.amp * rf.amp_shape.0[i] * dur * std::f64::consts::TAU,
+            rf.phase + rf.phase_shape.0[i] * std::f64::consts::TAU,
         );
     }
 }
 
-pub fn sample_grad(t: f32, grad: &Gradient, grad_raster: f32) -> f32 {
+pub fn sample_grad(t: f64, grad: &Gradient, grad_raster: f64) -> f64 {
     match grad {
         pulseq_rs::Gradient::Free { amp, delay, shape } => {
             let index = ((t - delay) / grad_raster - 0.5).ceil() as usize;
@@ -94,7 +94,7 @@ pub fn sample_grad(t: f32, grad: &Gradient, grad_raster: f32) -> f32 {
     }
 }
 
-pub fn trap_sample(t: f32, rise: f32, flat: f32, fall: f32) -> f32 {
+pub fn trap_sample(t: f64, rise: f64, flat: f64, fall: f64) -> f64 {
     if t < 0.0 {
         0.0
     } else if t < rise {
@@ -108,7 +108,7 @@ pub fn trap_sample(t: f32, rise: f32, flat: f32, fall: f32) -> f32 {
     }
 }
 
-pub fn integrate_trap(t_start: f32, t_end: f32, rise: f32, flat: f32, fall: f32) -> f32 {
+pub fn integrate_trap(t_start: f64, t_end: f64, rise: f64, flat: f64, fall: f64) -> f64 {
     let integral = |t| {
         if t <= rise {
             0.5 * t * t / rise
@@ -122,12 +122,12 @@ pub fn integrate_trap(t_start: f32, t_end: f32, rise: f32, flat: f32, fall: f32)
     integral(t_end.min(rise + flat + fall)) - integral(t_start.max(0.0))
 }
 
-pub fn integrate_free(t_start: f32, t_end: f32, shape: &Shape, dwell: f32) -> f32 {
+pub fn integrate_free(t_start: f64, t_end: f64, shape: &Shape, dwell: f64) -> f64 {
     let mut integrated = 0.0;
 
     for i in 0..shape.0.len() {
         // Start time of the sample number i
-        let t = i as f32 * dwell;
+        let t = i as f64 * dwell;
 
         // Skip samples before t_start, quit when reaching t_end
         if t + dwell <= t_start {
@@ -144,8 +144,8 @@ pub fn integrate_free(t_start: f32, t_end: f32, shape: &Shape, dwell: f32) -> f3
             dwell
         } else {
             // Clamp the sample intervall to the integration intervall
-            let t0 = f32::max(t_start, t);
-            let t1 = f32::min(t_end, t + dwell);
+            let t0 = f64::max(t_start, t);
+            let t1 = f64::min(t_end, t + dwell);
             t1 - t0
         };
 

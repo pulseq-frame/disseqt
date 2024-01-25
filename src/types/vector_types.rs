@@ -2,23 +2,23 @@
 
 #[derive(Debug, Clone)]
 pub struct RfPulseSampleVec {
-    pub amplitude: Vec<f32>,
-    pub phase: Vec<f32>,
-    pub frequency: Vec<f32>,
+    pub amplitude: Vec<f64>,
+    pub phase: Vec<f64>,
+    pub frequency: Vec<f64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct GradientSampleVec {
-    pub x: Vec<f32>,
-    pub y: Vec<f32>,
-    pub z: Vec<f32>,
+    pub x: Vec<f64>,
+    pub y: Vec<f64>,
+    pub z: Vec<f64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct AdcBlockSampleVec {
     pub active: Vec<bool>,
-    pub phase: Vec<f32>,
-    pub frequency: Vec<f32>,
+    pub phase: Vec<f64>,
+    pub frequency: Vec<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -32,15 +32,15 @@ pub struct SampleVec {
 
 #[derive(Debug, Clone)]
 pub struct RfPulseMomentVec {
-    pub angle: Vec<f32>,
-    pub phase: Vec<f32>,
+    pub angle: Vec<f64>,
+    pub phase: Vec<f64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct GradientMomentVec {
-    pub x: Vec<f32>,
-    pub y: Vec<f32>,
-    pub z: Vec<f32>,
+    pub x: Vec<f64>,
+    pub y: Vec<f64>,
+    pub z: Vec<f64>,
 }
 
 #[derive(Debug, Clone)]

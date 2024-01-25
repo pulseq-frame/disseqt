@@ -8,8 +8,8 @@ fn import_pulseq(path: &str) -> mr0::Sequence {
     let mut seq = mr0::Sequence::default();
     let mut t = 0.0;
 
-    fn pulse_usage(angle: f32) -> mr0::PulseUsage {
-        if angle.abs() < 100.0 * std::f32::consts::PI / 180.0 {
+    fn pulse_usage(angle: f64) -> mr0::PulseUsage {
+        if angle.abs() < 100.0 * std::f64::consts::PI / 180.0 {
             mr0::PulseUsage::Excit
         } else {
             mr0::PulseUsage::Refoc
@@ -41,7 +41,7 @@ fn import_pulseq(path: &str) -> mr0::Sequence {
         rep.pulse.phase = moment.pulse.phase;
         rep.pulse.usage = pulse_usage(moment.pulse.angle);
 
-        let abs_times: Vec<f32> = std::iter::once(&rep_start)
+        let abs_times: Vec<f64> = std::iter::once(&rep_start)
             .chain(adc_times.iter())
             .chain(std::iter::once(&rep_end))
             .cloned()
@@ -67,7 +67,7 @@ fn import_pulseq(path: &str) -> mr0::Sequence {
             if i < adc_times.len() {
                 rep.events[i].adc_usage = 1;
                 // Last event goes to start of next rep, doesn't have an ADC
-                rep.events[i].adc_phase = std::f32::consts::FRAC_PI_2 - samples.adc.phase[i];
+                rep.events[i].adc_phase = std::f64::consts::FRAC_PI_2 - samples.adc.phase[i];
             }
         }
     }
@@ -79,7 +79,7 @@ fn main() {
     let start = std::time::Instant::now();
     std::hint::black_box(import_pulseq("examples/gre.seq"));
     let end = std::time::Instant::now();
-    println!("Importing took {} seconds", (end - start).as_secs_f32());
+    println!("Importing took {} seconds", (end - start).as_secs_f64());
 }
 
 mod mr0 {
@@ -104,16 +104,16 @@ mod mr0 {
 
     #[derive(Default, Clone, Copy)]
     pub struct Pulse {
-        pub angle: f32,
-        pub phase: f32,
+        pub angle: f64,
+        pub phase: f64,
         pub usage: PulseUsage,
     }
 
     #[derive(Default, Clone, Copy)]
     pub struct Event {
-        pub dur: f32,
-        pub gradm: [f32; 3],
-        pub adc_phase: f32,
+        pub dur: f64,
+        pub gradm: [f64; 3],
+        pub adc_phase: f64,
         pub adc_usage: u32,
     }
 

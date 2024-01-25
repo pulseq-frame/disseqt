@@ -6,22 +6,22 @@
 #[derive(Default, Debug, Clone, Copy)]
 pub struct RfPulseSample {
     /// Unit: `Hz`
-    pub amplitude: f32,
+    pub amplitude: f64,
     /// Unit: `rad`
-    pub phase: f32,
+    pub phase: f64,
     /// Unit: `Hz`
-    pub frequency: f32,
+    pub frequency: f64,
 }
 
 /// Contains the gradient amplitudes for a single point in time.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct GradientSample {
     /// Unit: `Hz / m`
-    pub x: f32,
+    pub x: f64,
     /// Unit: `Hz / m`
-    pub y: f32,
+    pub y: f64,
     /// Unit: `Hz / m`
-    pub z: f32,
+    pub z: f64,
 }
 
 /// Contains the ADC state for a single point in time. NOTE: this does not
@@ -33,9 +33,9 @@ pub struct AdcBlockSample {
     /// Specifies if the ADC is active, not if this is an ADC sample
     pub active: bool,
     /// Unit: `rad`
-    pub phase: f32,
+    pub phase: f64,
     /// Unit: `Hz`
-    pub frequency: f32,
+    pub frequency: f64,
 }
 
 /// See `RfPulseSample`, `GradientSample` and `AdcBlockSample`
@@ -52,20 +52,20 @@ pub struct Sample {
 #[derive(Default, Debug, Clone, Copy)]
 pub struct GradientMoment {
     /// Unit: `rad / m`
-    pub x: f32,
+    pub x: f64,
     /// Unit: `rad / m`
-    pub y: f32,
+    pub y: f64,
     /// Unit: `rad / m`
-    pub z: f32,
+    pub z: f64,
 }
 
 /// Resulting flip angle by integrating an RF pulse over some time period.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct RfPulseMoment {
     /// Unit: `rad`
-    pub angle: f32,
+    pub angle: f64,
     /// Unit: `rad`
-    pub phase: f32,
+    pub phase: f64,
 }
 
 /// See `RfPulseMoment` and `GradientMoment`

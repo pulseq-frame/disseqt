@@ -7,9 +7,9 @@ mod helpers;
 
 pub struct PulseqSequence {
     // elements contain block start time
-    pub blocks: Vec<(f32, pulseq_rs::Block)>,
+    pub blocks: Vec<(f64, pulseq_rs::Block)>,
     pub raster: pulseq_rs::TimeRaster,
-    pub fov: Option<(f32, f32, f32)>,
+    pub fov: Option<(f64, f64, f64)>,
 }
 
 impl PulseqSequence {
@@ -37,7 +37,7 @@ impl PulseqSequence {
     }
 }
 
-fn parse_fov(s: &str) -> Option<(f32, f32, f32)> {
+fn parse_fov(s: &str) -> Option<(f64, f64, f64)> {
     let splits: Vec<_> = s.split_whitespace().collect();
     if splits.len() == 3 {
         Some((
@@ -51,15 +51,15 @@ fn parse_fov(s: &str) -> Option<(f32, f32, f32)> {
 }
 
 impl Backend for PulseqSequence {
-    fn fov(&self) -> Option<(f32, f32, f32)> {
+    fn fov(&self) -> Option<(f64, f64, f64)> {
         self.fov
     }
 
-    fn duration(&self) -> f32 {
+    fn duration(&self) -> f64 {
         self.blocks.iter().map(|(_, b)| b.duration).sum()
     }
 
-    fn events(&self, ty: EventType, t_start: f32, t_end: f32, max_count: usize) -> Vec<f32> {
+    fn events(&self, ty: EventType, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
         // NOTE: The indirection by using a trait object seems to be neglectable in terms of
         // performance, although it makes the API a bit worse, as the time range that is
         // usually only constructed for the function call now needs a reference.
@@ -79,7 +79,7 @@ impl Backend for PulseqSequence {
         pois
     }
 
-    fn encounter(&self, t_start: f32, ty: EventType) -> Option<(f32, f32)> {
+    fn encounter(&self, t_start: f64, ty: EventType) -> Option<(f64, f64)> {
         let idx_start = match self
             .blocks
             .binary_search_by(|(block_start, _)| block_start.total_cmp(&t_start))
@@ -113,7 +113,7 @@ impl Backend for PulseqSequence {
         None
     }
 
-    fn integrate(&self, time: &[f32]) -> Vec<Moment> {
+    fn integrate(&self, time: &[f64]) -> Vec<Moment> {
         let mut moments = Vec::new();
         for t in time.windows(2) {
             let (pulse, gradient) = self.integrate(t[0], t[1]);
@@ -122,7 +122,7 @@ impl Backend for PulseqSequence {
         moments
     }
 
-    fn sample(&self, time: &[f32]) -> Vec<Sample> {
+    fn sample(&self, time: &[f64]) -> Vec<Sample> {
         time.into_iter()
             .map(|t| {
                 let (pulse, gradient, adc) = self.sample(*t);
@@ -141,7 +141,7 @@ impl Backend for PulseqSequence {
 // TODO: replace with code that effectively implements the function signatures
 // given by the Sequence trait
 impl PulseqSequence {
-    fn next_poi(&self, t_start: f32, ty: EventType) -> Option<f32> {
+    fn next_poi(&self, t_start: f64, ty: EventType) -> Option<f64> {
         let idx_start = match self
             .blocks
             .binary_search_by(|(block_start, _)| block_start.total_cmp(&t_start))
@@ -157,7 +157,7 @@ impl PulseqSequence {
             let t = match ty {
                 EventType::RfPulse => block.rf.as_ref().map(|rf| {
                     let idx = ((t - rf.delay) / self.raster.rf)
-                        .clamp(0.0, rf.amp_shape.0.len() as f32)
+                        .clamp(0.0, rf.amp_shape.0.len() as f64)
                         .ceil();
                     rf.delay + idx * self.raster.rf
                 }),
@@ -165,7 +165,7 @@ impl PulseqSequence {
                     // Here we actually sample in the centers instead of edges because,
                     // well, that's where the ADC samples are!
                     let idx = ((t - adc.delay) / adc.dwell - 0.5)
-                        .clamp(0.0, adc.num as f32 - 1.0)
+                        .clamp(0.0, adc.num as f64 - 1.0)
                         .ceil();
                     adc.delay + (idx + 0.5) * adc.dwell
                 }),
@@ -177,7 +177,7 @@ impl PulseqSequence {
                 .map(|grad| match grad.as_ref() {
                     Gradient::Free { delay, shape, .. } => {
                         let idx = ((t - delay) / self.raster.grad)
-                            .clamp(0.0, shape.0.len() as f32)
+                            .clamp(0.0, shape.0.len() as f64)
                             .ceil();
                         delay + idx * self.raster.grad
                     }
@@ -213,7 +213,7 @@ impl PulseqSequence {
         None
     }
 
-    fn integrate(&self, t_start: f32, t_end: f32) -> (RfPulseMoment, GradientMoment) {
+    fn integrate(&self, t_start: f64, t_end: f64) -> (RfPulseMoment, GradientMoment) {
         assert!(t_start < t_end);
 
         let idx_start = match self
@@ -275,7 +275,7 @@ impl PulseqSequence {
         )
     }
 
-    fn sample(&self, t: f32) -> (RfPulseSample, GradientSample, AdcBlockSample) {
+    fn sample(&self, t: f64) -> (RfPulseSample, GradientSample, AdcBlockSample) {
         let block_idx = match self
             .blocks
             .binary_search_by(|(block_start, _)| block_start.total_cmp(&t))
@@ -290,7 +290,7 @@ impl PulseqSequence {
             if index < rf.amp_shape.0.len() {
                 RfPulseSample {
                     amplitude: rf.amp * rf.amp_shape.0[index],
-                    phase: rf.phase + rf.phase_shape.0[index] * std::f32::consts::TAU,
+                    phase: rf.phase + rf.phase_shape.0[index] * std::f64::consts::TAU,
                     frequency: rf.freq,
                 }
             } else {
@@ -312,7 +312,7 @@ impl PulseqSequence {
 
         let adc_sample = if let Some(adc) = &block.adc {
             if block_start + adc.delay <= t
-                && t <= block_start + adc.delay + adc.num as f32 * adc.dwell
+                && t <= block_start + adc.delay + adc.num as f64 * adc.dwell
             {
                 AdcBlockSample {
                     active: true,
