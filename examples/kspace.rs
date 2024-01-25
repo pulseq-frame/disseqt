@@ -4,7 +4,7 @@ fn main() {
     let seq = disseqt::load_pulseq("examples/gre.seq").unwrap();
     let fov = seq.fov().unwrap_or((1.0, 1.0, 1.0));
 
-    let mut kspace: Vec<Vec<(f32, f32)>> = Vec::new();
+    let mut kspace: Vec<Vec<(f64, f64, f64)>> = Vec::new();
     let mut t = 0.0;
 
     while let Some((pulse_start, pulse_end)) = seq.encounter(t, EventType::RfPulse) {
@@ -13,6 +13,7 @@ fn main() {
 
         let mut kx = 0.0;
         let mut ky = 0.0;
+        let mut kz = 0.0;
         kspace.push(Vec::new());
         let line = kspace.last_mut().unwrap();
 
@@ -27,12 +28,15 @@ fn main() {
 
             kx += moment.gradient.x * fov.0;
             ky += moment.gradient.y * fov.1;
-            line.push((kx, ky));
+            kz += moment.gradient.z * fov.2;
+            line.push((kx, ky, kz));
         }
     }
 
-    let kx: Vec<f32> = kspace[0].iter().map(|(x, _)| *x).collect();
-    let ky: Vec<f32> = kspace.iter().map(|line| line[0].1).collect();
+    let kx: Vec<f64> = kspace[0].iter().map(|(x, _, _)| *x).collect();
+    let ky: Vec<f64> = kspace.iter().map(|line| line[0].1).collect();
+    let kz: Vec<f64> = kspace.iter().map(|line| line[0].2).collect();
     println!("{kx:?}");
     println!("{ky:?}");
+    println!("{kz:?}");
 }
