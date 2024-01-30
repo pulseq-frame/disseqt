@@ -73,7 +73,7 @@ impl Backend for PulseqSequence {
                 break;
             }
             pois.push(t_next);
-            t = t_next + 1e-6;
+            t = t_next + 1e-9;
         }
 
         pois
