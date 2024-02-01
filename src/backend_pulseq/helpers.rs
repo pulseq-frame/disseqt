@@ -66,8 +66,8 @@ pub fn integrate_rf(
             dwell
         } else {
             // Clamp the sample intervall to the integration intervall
-            let t0 = f64::max(t_start, t);
-            let t1 = f64::min(t_end, t + dwell);
+            let t0 = t.clamp(t_start, t_end);
+            let t1 = (t + dwell).clamp(t_start, t_end);
             t1 - t0
         };
 
@@ -119,7 +119,9 @@ pub fn integrate_trap(t_start: f64, t_end: f64, rise: f64, flat: f64, fall: f64)
             (0.5 * rise) + flat + (0.5 * (fall - rev_t * rev_t / fall))
         }
     };
-    integral(t_end.min(rise + flat + fall)) - integral(t_start.max(0.0))
+    let t_min = 0.0;
+    let t_max = rise + flat + fall;
+    integral(t_end.clamp(t_min, t_max)) - integral(t_start.clamp(t_min, t_max))
 }
 
 pub fn integrate_free(t_start: f64, t_end: f64, shape: &Shape, dwell: f64) -> f64 {
@@ -144,8 +146,8 @@ pub fn integrate_free(t_start: f64, t_end: f64, shape: &Shape, dwell: f64) -> f6
             dwell
         } else {
             // Clamp the sample intervall to the integration intervall
-            let t0 = f64::max(t_start, t);
-            let t1 = f64::min(t_end, t + dwell);
+            let t0 = t.clamp(t_start, t_end);
+            let t1 = (t + dwell).clamp(t_start, t_end);
             t1 - t0
         };
 
