@@ -19,6 +19,12 @@ pub fn load_pulseq<P: AsRef<Path>>(path: P) -> Result<Sequence, pulseq_rs::Error
     )?)))
 }
 
+pub fn load_pulseq_str(source: &str) -> Result<Sequence, pulseq_rs::Error> {
+    Ok(Sequence(Box::new(
+        backend_pulseq::PulseqSequence::load_str(source)?,
+    )))
+}
+
 /// This trait is implemented by all backends and provides the basic functions
 /// on which the public disseqt API is built upon
 trait Backend: Send {

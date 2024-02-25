@@ -15,6 +15,15 @@ pub struct PulseqSequence {
 impl PulseqSequence {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, pulseq_rs::Error> {
         let seq = pulseq_rs::Sequence::from_file(path)?;
+        Ok(Self::from_seq(seq))
+    }
+
+    pub fn load_str(source: &str) -> Result<Self, pulseq_rs::Error> {
+        let seq = pulseq_rs::Sequence::from_source(source)?;
+        Ok(Self::from_seq(seq))
+    }
+
+    fn from_seq(seq: pulseq_rs::Sequence) -> Self {
         let blocks = seq
             .blocks
             .into_iter()
@@ -29,11 +38,11 @@ impl PulseqSequence {
             .fov
             .or_else(|| seq.definitions.get("FOV").and_then(|s| parse_fov(s)));
 
-        Ok(Self {
+        Self {
             blocks,
             raster: seq.time_raster,
             fov,
-        })
+        }
     }
 }
 
