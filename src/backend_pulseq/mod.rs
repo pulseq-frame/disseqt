@@ -222,8 +222,13 @@ impl PulseqSequence {
         None
     }
 
-    fn integrate(&self, t_start: f64, t_end: f64) -> (RfPulseMoment, GradientMoment) {
-        assert!(t_start < t_end);
+    fn integrate(&self, mut t_start: f64, mut t_end: f64) -> (RfPulseMoment, GradientMoment) {
+        let mut sign = 1.0;
+        if t_end < t_start {
+            // Integrate backwards and flip sign
+            std::mem::swap(&mut t_start, &mut t_end);
+            sign = -1.0;
+        }
 
         let idx_start = match self
             .blocks
@@ -277,10 +282,14 @@ impl PulseqSequence {
 
         (
             RfPulseMoment {
-                angle: spin.angle(),
-                phase: spin.phase(),
+                angle: sign * spin.angle(),
+                phase: sign * spin.phase(),
             },
-            grad,
+            GradientMoment {
+                x: sign * grad.x,
+                y: sign * grad.y,
+                z: sign * grad.z,
+            },
         )
     }
 
