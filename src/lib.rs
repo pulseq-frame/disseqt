@@ -4,6 +4,7 @@
 // general case. It probably is enough for simulation with absolute times, but
 // errors accumulate too quickly when generating sequences -> use double precision!
 
+mod backend_dsv;
 mod backend_pulseq;
 mod sequence;
 mod types;
@@ -17,6 +18,10 @@ pub fn load_pulseq<P: AsRef<Path>>(path: P) -> Result<Sequence, pulseq_rs::Error
     Ok(Sequence(Box::new(backend_pulseq::PulseqSequence::load(
         path,
     )?)))
+}
+
+pub fn load_dsv<P: AsRef<Path>>(path: P) -> Result<Sequence, backend_dsv::Error> {
+    Ok(Sequence(Box::new(backend_dsv::DsvSequence::load(path)?)))
 }
 
 pub fn load_pulseq_str(source: &str) -> Result<Sequence, pulseq_rs::Error> {

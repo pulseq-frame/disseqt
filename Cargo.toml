@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 pulseq-rs = { git = "https://github.com/pulseq-frame/pulseq-rs.git" }
+thiserror = "1.0.61"
 
 [dev-dependencies]
 assert2 = "0.3.11"
