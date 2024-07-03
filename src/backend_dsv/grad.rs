@@ -10,7 +10,7 @@ pub struct Grad {
     amplitude: Vec<f64>,
     /// Sample time step in seconds
     time_step: f64,
-    /// Location of pulses
+    /// Location of gradients
     events: Trigger,
 }
 

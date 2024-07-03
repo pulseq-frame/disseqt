@@ -25,7 +25,7 @@ impl DsvSequence {
         let gx = grad::Grad::load(&path, "GRX")?;
         let gy = grad::Grad::load(&path, "GRY")?;
         let gz = grad::Grad::load(&path, "GRZ")?;
-        let adc = adc::Adc; //::load(path)?;
+        let adc = adc::Adc::load(path)?;
 
         Ok(Self {
             rf,
@@ -52,7 +52,7 @@ impl Backend for DsvSequence {
     fn events(&self, ty: crate::EventType, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
         match ty {
             crate::EventType::RfPulse => self.rf.events(t_start, t_end, max_count),
-            crate::EventType::Adc => Vec::new(),
+            crate::EventType::Adc => self.adc.events(t_start, t_end, max_count),
             crate::EventType::Gradient(channel) => match channel {
                 crate::GradientChannel::X => self.gx.events(t_start, t_end, max_count),
                 crate::GradientChannel::Y => self.gy.events(t_start, t_end, max_count),
@@ -64,7 +64,7 @@ impl Backend for DsvSequence {
     fn encounter(&self, t_start: f64, ty: crate::EventType) -> Option<(f64, f64)> {
         match ty {
             crate::EventType::RfPulse => self.rf.encounter(t_start),
-            crate::EventType::Adc => None,
+            crate::EventType::Adc => self.adc.encounter(t_start),
             crate::EventType::Gradient(channel) => match channel {
                 crate::GradientChannel::X => self.gx.encounter(t_start),
                 crate::GradientChannel::Y => self.gy.encounter(t_start),
@@ -99,10 +99,12 @@ impl Backend for DsvSequence {
                     z: self.gz.sample(t),
                 };
 
+                // TODO: no out of bounds protection
+                let index = (t / self.adc.time_step).round() as usize;
                 let adc = crate::AdcBlockSample {
-                    active: false,
-                    phase: 0.0,
-                    frequency: 0.0,
+                    active: self.adc.active[index],
+                    phase: self.adc.phase[index],
+                    frequency: self.adc.frequency,
                 };
 
                 crate::Sample {
