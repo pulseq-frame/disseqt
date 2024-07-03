@@ -129,9 +129,9 @@ impl Backend for DsvSequence {
             moments.push(Moment {
                 pulse,
                 gradient: crate::GradientMoment {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
+                    x: self.gx.integrate(t[0], t[1]),
+                    y: self.gy.integrate(t[0], t[1]),
+                    z: self.gz.integrate(t[0], t[1]),
                 },
             });
         }

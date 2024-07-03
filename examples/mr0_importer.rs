@@ -4,7 +4,8 @@
 use disseqt::EventType;
 
 fn import_pulseq(path: &str) -> mr0::Sequence {
-    let parser = disseqt::load_pulseq(path).unwrap();
+    // let parser = disseqt::load_pulseq(path).unwrap();
+    let parser = disseqt::load_dsv(path).unwrap();
     let mut seq = mr0::Sequence::default();
     let mut t = 0.0;
 
@@ -77,7 +78,9 @@ fn import_pulseq(path: &str) -> mr0::Sequence {
 
 fn main() {
     let start = std::time::Instant::now();
-    std::hint::black_box(import_pulseq("examples/gre.seq"));
+    // std::hint::black_box(import_pulseq("examples/gre.seq"));
+    std::hint::black_box(import_pulseq("examples/3DSnapshotGRE_Comparision_E_0_64_64_8_alternating_fully_sampled/SimulationProtocol"));
+
     let end = std::time::Instant::now();
     println!("Importing took {} seconds", (end - start).as_secs_f64());
 }

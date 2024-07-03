@@ -53,8 +53,9 @@ impl Trigger {
 
     pub fn search(&self, i_start: usize) -> Option<(usize, usize)> {
         match self
-        .events
-        .binary_search_by_key(&i_start, |&(start, _)| start) {
+            .events
+            .binary_search_by_key(&i_start, |&(start, _)| start)
+        {
             // we are exactly on the starting point of the event
             Ok(idx) => Some(self.events[idx]),
             // we must check if we are before the event
@@ -64,7 +65,29 @@ impl Trigger {
                 } else {
                     None
                 }
-            },
+            }
         }
+    }
+
+    pub fn events<'a>(&'a self, i_start: usize, i_end: usize) -> impl Iterator<Item = (usize, usize)> + 'a {
+        // Index of the first event overlapping with the time range
+        let idx = match self
+            .events
+            .binary_search_by_key(&i_start, |&(start, _)| start)
+        {
+            Ok(idx) => idx,
+            Err(idx) => {
+                if idx > 0 && self.events[idx - 1].1 > i_start {
+                    idx - 1
+                } else {
+                    idx
+                }
+            }
+        };
+
+        self.events[idx..]
+            .iter()
+            .take_while(move |&&(evt_start, evt_end)| i_start < evt_end && evt_start < i_end)
+            .copied()
     }
 }

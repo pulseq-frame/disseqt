@@ -59,9 +59,22 @@ impl Adc {
     }
 
     pub fn events(&self, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
-        // Here the hack from rf and grads does not work; we actually need
-        // only the adc samples!
-        todo!()
+        // TODO Naming: the events inside of the Trigger are blocks and ADC events = samples
+        let i_start = (t_start / self.time_step).ceil() as usize;
+        let i_end = (t_end / self.time_step).ceil() as usize;
+
+        let mut samples = Vec::new();
+        for event in self.events.events(i_start, i_end) {
+            let a = i_start.max(event.0);
+            let b = i_end.min(event.1);
+            samples.extend(
+                (a..b)
+                    .take(max_count - samples.len())
+                    .map(|i| i as f64 * self.time_step),
+            )
+        }
+
+        samples
     }
 }
 

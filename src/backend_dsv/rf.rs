@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{backend_dsv::trigger::Trigger, util::{self, Spin}};
+use crate::{backend_dsv::trigger::Trigger, util};
 
 use super::{
     helpers::{decompress_shape, DsvFile},
@@ -72,7 +72,9 @@ impl Rf {
     pub fn integrate(&self, spin: &mut util::Spin, t_start: f64, t_end: f64) {
         // TODO: this is not performant for integrations over long time periods
         // because it will sum up all zeros of the empty space between pulses
-        for i in 0..self.amplitude.len() {
+        let i_start = (t_start / self.time_step).floor() as usize;
+
+        for i in i_start..self.amplitude.len() {
             let t = i as f64 * self.time_step;
 
             // Skip samples before t_start, quit when reaching t_end
@@ -96,10 +98,7 @@ impl Rf {
             };
 
             // TODO: conversion from volts to frequency
-            *spin *= util::Rotation::new(
-                self.amplitude[i] * dur * 100.0,
-                self.phase[i],
-            );
+            *spin *= util::Rotation::new(self.amplitude[i] * dur * 100.0, self.phase[i]);
         }
     }
 }

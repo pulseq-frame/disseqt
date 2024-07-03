@@ -1,7 +1,9 @@
 use disseqt::EventType;
 
 fn main() {
-    let seq = disseqt::load_pulseq("examples/gre.seq").unwrap();
+    // let seq = disseqt::load_pulseq("examples/gre.seq").unwrap();
+    let seq = disseqt::load_dsv("examples/3DSnapshotGRE_Comparision_E_0_64_64_8_alternating_fully_sampled/SimulationProtocol").unwrap();
+
     let fov = seq.fov().unwrap_or((1.0, 1.0, 1.0));
 
     let mut kspace: Vec<Vec<(f64, f64, f64)>> = Vec::new();
@@ -23,6 +25,7 @@ fn main() {
                 break;
             }
 
+            // The integration code currently is too slow.
             let moment = seq.integrate_one(t, next_adc);
             t = next_adc;
 

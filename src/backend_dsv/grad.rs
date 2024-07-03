@@ -71,4 +71,40 @@ impl Grad {
             self.amplitude.get(index).cloned().unwrap_or(0.0)
         }
     }
+
+    pub fn integrate(&self, t_start: f64, t_end: f64) -> f64 {
+        // TODO: this is not performant for integrations over long time periods
+        // because it will sum up all zeros of the empty space between pulses
+        let i_start = (t_start / self.time_step).floor() as usize;
+        let mut grad = 0.0;
+
+        for i in i_start..self.amplitude.len() {
+            let t = i as f64 * self.time_step;
+
+            // Skip samples before t_start, quit when reaching t_end
+            if t + self.time_step < t_start {
+                continue;
+            }
+            if t_end <= t {
+                break;
+            }
+
+            // We could do the clamping for all samples, but when integrating
+            // over many samples, it seems to be very sensitive to accumulating
+            // errors. Only doing it in the edge cases is much more robust.
+            let dur = if t_start <= t && t + self.time_step <= t_end {
+                self.time_step
+            } else {
+                // Clamp the sample intervall to the integration intervall
+                let t0 = t.clamp(t_start, t_end);
+                let t1 = (t + self.time_step).clamp(t_start, t_end);
+                t1 - t0
+            };
+
+            // TODO: units?
+            grad += self.amplitude[i] * dur;
+        }
+
+        grad
+    }
 }
