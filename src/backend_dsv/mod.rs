@@ -1,26 +1,31 @@
 use crate::Backend;
+use helpers::DsvFile;
 use std::{collections::HashMap, path::Path};
 use thiserror::Error;
+
+mod helpers;
+mod rf;
 
 #[derive(Error, Debug)]
 pub enum Error {}
 
 pub struct DsvSequence {
-    rf_amplitude: [Vec<f64>; 2],
-    // rf_phase: [Vec<f64>; 2],
+    rf: rf::Rf,
 }
 
 impl DsvSequence {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Ok(Self {
-            rf_amplitude: load_rfds(path)?,
+            // rf_amplitude: load_rfds(path)?,
+            rf: rf::Rf::load(path)?,
         })
     }
 }
 
 impl Backend for DsvSequence {
     fn fov(&self) -> Option<(f64, f64, f64)> {
-        todo!()
+        // Can be found in the .pro protocol XML file
+        Some((0.22, 0.22, 0.04))
     }
 
     fn duration(&self) -> f64 {
@@ -28,15 +33,67 @@ impl Backend for DsvSequence {
     }
 
     fn events(&self, ty: crate::EventType, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
-        todo!()
+        if t_start < 5.0 {
+            Vec::new()
+        } else {
+            let i_start = (t_start / self.rf.time_step).ceil() as i64;
+            let i_end = (t_end / self.rf.time_step).ceil() as i64;
+
+            (i_start..i_end)
+                .take(max_count)
+                .map(|i| i as f64 * self.rf.time_step)
+                .collect()
+        }
     }
 
     fn encounter(&self, t_start: f64, ty: crate::EventType) -> Option<(f64, f64)> {
-        todo!()
+        if matches!(ty, crate::EventType::RfPulse) {
+            // Hardcoded pulse
+            if t_start < 5.0 {
+                Some((5.0, 5.004))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 
     fn sample(&self, time: &[f64]) -> Vec<crate::Sample> {
-        todo!()
+        // TODO: look if this rounding is correct / where is the center of a sample?
+
+        // TODO: maybe the current backend trait is suboptimal; It would be much
+        // nicer if we could create the Vec types here directly.
+        // Maybe provide both sample and sample_vec in the trait, with blanket impls?
+
+        time.iter()
+            .map(|&t| {
+                let index = (t / self.rf.time_step).round() as usize;
+
+                let pulse = crate::RfPulseSample {
+                    amplitude: self.rf.amplitude[index],
+                    phase: self.rf.phase[index],
+                    frequency: self.rf.frequency,
+                };
+
+                let gradient = crate::GradientSample {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                };
+                let adc = crate::AdcBlockSample {
+                    active: false,
+                    phase: 0.0,
+                    frequency: 0.0,
+                };
+
+                crate::Sample {
+                    pulse,
+                    gradient,
+                    adc,
+                }
+            })
+            .collect()
     }
 
     fn integrate(&self, time: &[f64]) -> Vec<crate::Moment> {
@@ -45,89 +102,3 @@ impl Backend for DsvSequence {
 }
 
 // TODO: replace all the unwraps with errors
-
-fn load_rfds<P: AsRef<Path>>(path: P) -> Result<[Vec<f64>; 2], Error> {
-    // TODO: We only load RDF 1 here, put this in separate function and load both channels
-    let file_name = path.as_ref().file_stem().unwrap().to_str().unwrap();
-    let file_path = path.as_ref().with_file_name(format!("{file_name}_RFD.dsv"));
-    let file_buf = std::fs::read(file_path).unwrap();
-    let file_str = String::from_utf8_lossy(&file_buf);
-
-    let definitions = file_str
-        .split('[')
-        .find(|s| s.starts_with("DEFINITIONS"))
-        .unwrap();
-
-    let definitions: HashMap<_, _> = definitions
-        .lines()
-        .skip(1)
-        .filter(|l| !l.is_empty())
-        .map(|def| def.split_once('=').unwrap())
-        .map(|(key, val)| (key.trim(), val.trim()))
-        .collect();
-
-    let values = file_str
-        .split('[')
-        .find(|s| s.starts_with("VALUES"))
-        .unwrap();
-
-    let values: Vec<i64> = values
-        .lines()
-        .skip(1)
-        .map_while(|s| s.parse().ok())
-        .collect();
-
-    let num_samples: usize = definitions["SAMPLES"].parse().unwrap();
-
-    let rf = decompress_shape(values, num_samples);
-
-    println!("{definitions:#?}");
-    println!("{:?}", &rf[1000250..1000400]);
-
-    todo!()
-}
-
-pub fn decompress_shape(samples: Vec<i64>, num_samples: usize) -> Vec<i64> {
-    // First, decompress into the deriviate of the shape
-    let mut deriv = Vec::with_capacity(num_samples);
-
-    // The two samples before the current one, to detect RLE
-    let mut a = i64::MIN;
-    let mut b = i64::MAX;
-    // After a detected RLE, skip the RLE check for two samples
-    let mut skip = 0;
-
-    for sample in samples.into_iter() {
-        if a == b && skip == 0 {
-            skip = 2;
-            for _ in 0..sample as usize {
-                deriv.push(b);
-            }
-        } else {
-            if skip > 0 {
-                skip -= 1;
-            }
-            deriv.push(sample);
-        }
-
-        a = b;
-        b = sample;
-    }
-
-    if deriv.len() != num_samples {
-        panic!(
-            "Wrong decompressed length: got {}, expected {}",
-            deriv.len(),
-            num_samples
-        );
-    }
-
-    // Then, do a cumultative sum to get the shape
-    deriv
-        .into_iter()
-        .scan(0, |acc, x| {
-            *acc += x;
-            Some(*acc)
-        })
-        .collect()
-}
