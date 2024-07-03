@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::backend_dsv::trigger::Trigger;
+use crate::{backend_dsv::trigger::Trigger, util::{self, Spin}};
 
 use super::{
     helpers::{decompress_shape, DsvFile},
@@ -67,6 +67,40 @@ impl Rf {
             i_start as f64 * self.time_step,
             i_end as f64 * self.time_step,
         ))
+    }
+
+    pub fn integrate(&self, spin: &mut util::Spin, t_start: f64, t_end: f64) {
+        // TODO: this is not performant for integrations over long time periods
+        // because it will sum up all zeros of the empty space between pulses
+        for i in 0..self.amplitude.len() {
+            let t = i as f64 * self.time_step;
+
+            // Skip samples before t_start, quit when reaching t_end
+            if t + self.time_step < t_start {
+                continue;
+            }
+            if t_end <= t {
+                break;
+            }
+
+            // We could do the clamping for all samples, but when integrating
+            // over many samples, it seems to be very sensitive to accumulating
+            // errors. Only doing it in the edge cases is much more robust.
+            let dur = if t_start <= t && t + self.time_step <= t_end {
+                self.time_step
+            } else {
+                // Clamp the sample intervall to the integration intervall
+                let t0 = t.clamp(t_start, t_end);
+                let t1 = (t + self.time_step).clamp(t_start, t_end);
+                t1 - t0
+            };
+
+            // TODO: conversion from volts to frequency
+            *spin *= util::Rotation::new(
+                self.amplitude[i] * dur * 100.0,
+                self.phase[i],
+            );
+        }
     }
 }
 

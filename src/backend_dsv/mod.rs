@@ -1,4 +1,4 @@
-use crate::Backend;
+use crate::{util, Backend, Moment};
 use helpers::DsvFile;
 use std::{collections::HashMap, path::Path};
 use thiserror::Error;
@@ -86,8 +86,22 @@ impl Backend for DsvSequence {
             .collect()
     }
 
-    fn integrate(&self, time: &[f64]) -> Vec<crate::Moment> {
-        todo!()
+    fn integrate(&self, time: &[f64]) -> Vec<Moment> {
+        let mut moments = Vec::new();
+        for t in time.windows(2) {
+            let mut spin = util::Spin::relaxed();
+            self.rf.integrate(&mut spin, t[0], t[1]);
+
+            let pulse = crate::RfPulseMoment {
+                angle: spin.angle(),
+                phase: spin.phase(),
+            };
+            moments.push(Moment {
+                pulse,
+                gradient: crate::GradientMoment { x: 0.0, y: 0.0, z: 0.0 },
+            });
+        }
+        moments
     }
 }
 
