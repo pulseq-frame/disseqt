@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use crate::backend_dsv::trigger::Trigger;
+
 use super::{
     helpers::{decompress_shape, DsvFile},
     Error,
@@ -14,6 +16,8 @@ pub struct Rf {
     pub time_step: f64,
     /// Frequency in Hz
     pub frequency: f64,
+    /// Location of pulses
+    events: Trigger,
 }
 
 impl Rf {
@@ -31,12 +35,38 @@ impl Rf {
             *x = *x * std::f64::consts::PI / 180.0;
         }
 
+        let events = Trigger::new(&amplitude.data);
+
         Ok(Self {
             amplitude: amplitude.data,
             phase: phase.data,
             time_step: amplitude.time_step,
             frequency: amplitude.frequency,
+            events,
         })
+    }
+
+    pub fn events(&self, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
+        // Simple solution: we are on a fixed raster - return that.
+        // Could only return events within encounters, but we assume that
+        // The user checks where those encounters are themselves.
+        let i_start = (t_start / self.time_step).ceil() as usize;
+        let i_end = (t_end / self.time_step).ceil() as usize;
+
+        (i_start..i_end)
+            .take(max_count)
+            .map(|i| i as f64 * self.time_step)
+            .collect()
+    }
+
+    pub fn encounter(&self, t_start: f64) -> Option<(f64, f64)> {
+        let i_start = (t_start / self.time_step).ceil() as usize;
+        let (i_start, i_end) = self.events.search(i_start)?;
+
+        Some((
+            i_start as f64 * self.time_step,
+            i_end as f64 * self.time_step,
+        ))
     }
 }
 

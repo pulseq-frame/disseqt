@@ -5,6 +5,7 @@ use thiserror::Error;
 
 mod helpers;
 mod rf;
+mod trigger;
 
 #[derive(Error, Debug)]
 pub enum Error {}
@@ -33,29 +34,18 @@ impl Backend for DsvSequence {
     }
 
     fn events(&self, ty: crate::EventType, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
-        if t_start < 5.0 {
-            Vec::new()
-        } else {
-            let i_start = (t_start / self.rf.time_step).ceil() as i64;
-            let i_end = (t_end / self.rf.time_step).ceil() as i64;
-
-            (i_start..i_end)
-                .take(max_count)
-                .map(|i| i as f64 * self.rf.time_step)
-                .collect()
+        match ty {
+            crate::EventType::RfPulse => self.rf.events(t_start, t_end, max_count),
+            crate::EventType::Adc => Vec::new(),
+            crate::EventType::Gradient(_) => Vec::new(),
         }
     }
 
     fn encounter(&self, t_start: f64, ty: crate::EventType) -> Option<(f64, f64)> {
-        if matches!(ty, crate::EventType::RfPulse) {
-            // Hardcoded pulse
-            if t_start < 5.0 {
-                Some((5.0, 5.004))
-            } else {
-                None
-            }
-        } else {
-            None
+        match ty {
+            crate::EventType::RfPulse => self.rf.encounter(t_start),
+            crate::EventType::Adc => None,
+            crate::EventType::Gradient(_) => None,
         }
     }
 
