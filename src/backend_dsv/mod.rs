@@ -1,8 +1,9 @@
 use crate::{util, Backend, Moment};
-use helpers::DsvFile;
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 use thiserror::Error;
 
+mod adc;
+mod grad;
 mod helpers;
 mod rf;
 mod trigger;
@@ -12,32 +13,51 @@ pub enum Error {}
 
 pub struct DsvSequence {
     rf: rf::Rf,
+    gx: grad::Grad,
+    gy: grad::Grad,
+    gz: grad::Grad,
+    adc: adc::Adc,
 }
 
 impl DsvSequence {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let rf = rf::Rf::load(&path)?;
+        let gx = grad::Grad::load(&path, "GRX")?;
+        let gy = grad::Grad::load(&path, "GRY")?;
+        let gz = grad::Grad::load(&path, "GRZ")?;
+        let adc = adc::Adc; //::load(path)?;
+
         Ok(Self {
-            // rf_amplitude: load_rfds(path)?,
-            rf: rf::Rf::load(path)?,
+            rf,
+            gx,
+            gy,
+            gz,
+            adc,
         })
     }
 }
 
 impl Backend for DsvSequence {
     fn fov(&self) -> Option<(f64, f64, f64)> {
-        // Can be found in the .pro protocol XML file
-        Some((0.22, 0.22, 0.04))
+        // TODO: Can be found in the .pro protocol XML file
+        // Some((0.22, 0.22, 0.04))
+        None
     }
 
     fn duration(&self) -> f64 {
-        todo!()
+        // TODO: we currently just assume everything has the same duration
+        self.rf.time_step * self.rf.amplitude.len() as f64
     }
 
     fn events(&self, ty: crate::EventType, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
         match ty {
             crate::EventType::RfPulse => self.rf.events(t_start, t_end, max_count),
             crate::EventType::Adc => Vec::new(),
-            crate::EventType::Gradient(_) => Vec::new(),
+            crate::EventType::Gradient(channel) => match channel {
+                crate::GradientChannel::X => self.gx.events(t_start, t_end, max_count),
+                crate::GradientChannel::Y => self.gy.events(t_start, t_end, max_count),
+                crate::GradientChannel::Z => self.gz.events(t_start, t_end, max_count),
+            },
         }
     }
 
@@ -45,7 +65,11 @@ impl Backend for DsvSequence {
         match ty {
             crate::EventType::RfPulse => self.rf.encounter(t_start),
             crate::EventType::Adc => None,
-            crate::EventType::Gradient(_) => None,
+            crate::EventType::Gradient(channel) => match channel {
+                crate::GradientChannel::X => self.gx.encounter(t_start),
+                crate::GradientChannel::Y => self.gy.encounter(t_start),
+                crate::GradientChannel::Z => self.gz.encounter(t_start),
+            },
         }
     }
 
@@ -58,6 +82,9 @@ impl Backend for DsvSequence {
 
         time.iter()
             .map(|&t| {
+                // very much repetition - can we unify shapes somehow?
+
+                // TODO: no out of bounds protection
                 let index = (t / self.rf.time_step).round() as usize;
 
                 let pulse = crate::RfPulseSample {
@@ -67,10 +94,11 @@ impl Backend for DsvSequence {
                 };
 
                 let gradient = crate::GradientSample {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
+                    x: self.gx.sample(t),
+                    y: self.gy.sample(t),
+                    z: self.gz.sample(t),
                 };
+
                 let adc = crate::AdcBlockSample {
                     active: false,
                     phase: 0.0,
@@ -98,7 +126,11 @@ impl Backend for DsvSequence {
             };
             moments.push(Moment {
                 pulse,
-                gradient: crate::GradientMoment { x: 0.0, y: 0.0, z: 0.0 },
+                gradient: crate::GradientMoment {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
             });
         }
         moments
