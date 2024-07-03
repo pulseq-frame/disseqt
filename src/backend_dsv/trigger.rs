@@ -59,7 +59,7 @@ impl Trigger {
             Ok(idx) => Some(self.events[idx]),
             // we must check if we are before the event
             Err(idx) => {
-                if i_start < self.events[idx].0 {
+                if idx < self.events.len() && i_start < self.events[idx].0 {
                     Some(self.events[idx])
                 } else {
                     None
