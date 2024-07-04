@@ -32,6 +32,8 @@ fn import_pulseq(path: &str) -> mr0::Sequence {
         let adc_times = parser.events(EventType::Adc, rep_start, rep_end, usize::MAX);
         if let Some(last_sample) = adc_times.last() {
             t = *last_sample;
+        } else {
+            t = pulse_end;
         }
 
         // Now build the mr0 repetition
