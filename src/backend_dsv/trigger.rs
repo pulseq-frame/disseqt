@@ -1,4 +1,8 @@
+#[derive(Debug)]
 pub struct Trigger {
+    /// The indices of the first and last value of an event that are not zero.
+    /// TODO: For some things like RF we might want to include the zero, for
+    /// others like ADC we do not as those are not samples - think about timing!
     events: Vec<(usize, usize)>,
 }
 
@@ -15,16 +19,16 @@ impl Trigger {
 
         // There might be less zeros before the first start
         if let Some(i) = samples.iter().take(WND - 1).position(|&x| x != 0.0) {
-            starts.push(i.max(1) - 1);
+            starts.push(i);
         }
 
         // 8 consecutive 0s count as an start / end
         for (i, w) in samples.windows(WND).enumerate() {
             if w[0..WND - 1].iter().all(|&x| x == 0.0) && w[WND - 1] != 0.0 {
-                starts.push(i + WND - 2);
+                starts.push(i + WND - 1);
             }
             if w[0] != 0.0 && w[1..WND].iter().all(|&x| x == 0.0) {
-                ends.push(i + 1);
+                ends.push(i);
             }
         }
 
@@ -69,7 +73,7 @@ impl Trigger {
         }
     }
 
-    pub fn events<'a>(&'a self, i_start: usize, i_end: usize) -> impl Iterator<Item = (usize, usize)> + 'a {
+    pub fn events(&self, i_start: usize, i_end: usize) -> impl Iterator<Item = (usize, usize)> + '_ {
         // Index of the first event overlapping with the time range
         let idx = match self
             .events
@@ -84,6 +88,8 @@ impl Trigger {
                 }
             }
         };
+
+        // TODO: is this correct? evt_start and evt_end values are inclusive currently!
 
         self.events[idx..]
             .iter()

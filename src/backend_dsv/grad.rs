@@ -40,6 +40,10 @@ impl Grad {
         })
     }
 
+    pub fn duration(&self) -> f64 {
+        self.time_step * self.amplitude.len() as f64
+    }
+
     pub fn events(&self, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
         // Simple solution: we are on a fixed raster - return that.
         // Could only return events within encounters, but we assume that
@@ -59,7 +63,7 @@ impl Grad {
 
         Some((
             i_start as f64 * self.time_step,
-            i_end as f64 * self.time_step,
+            (i_end + 1) as f64 * self.time_step,
         ))
     }
 

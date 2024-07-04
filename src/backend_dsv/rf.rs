@@ -36,6 +36,7 @@ impl Rf {
         }
 
         let events = Trigger::new(&amplitude.data);
+        println!("{events:?}");
 
         Ok(Self {
             amplitude: amplitude.data,
@@ -44,6 +45,10 @@ impl Rf {
             frequency: amplitude.frequency,
             events,
         })
+    }
+
+    pub fn duration(&self) -> f64 {
+        self.time_step * self.amplitude.len() as f64
     }
 
     pub fn events(&self, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
@@ -65,7 +70,7 @@ impl Rf {
 
         Some((
             i_start as f64 * self.time_step,
-            i_end as f64 * self.time_step,
+            (i_end + 1) as f64 * self.time_step,
         ))
     }
 

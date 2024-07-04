@@ -45,8 +45,16 @@ impl Backend for DsvSequence {
     }
 
     fn duration(&self) -> f64 {
-        // TODO: we currently just assume everything has the same duration
-        self.rf.time_step * self.rf.amplitude.len() as f64
+        *[
+            self.rf.duration(),
+            self.gx.duration(),
+            self.gy.duration(),
+            self.gz.duration(),
+            self.adc.duration(),
+        ]
+        .iter()
+        .max_by(|a, b| a.total_cmp(b))
+        .unwrap()
     }
 
     fn events(&self, ty: crate::EventType, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
@@ -88,8 +96,8 @@ impl Backend for DsvSequence {
                 let index = (t / self.rf.time_step).round() as usize;
 
                 let pulse = crate::RfPulseSample {
-                    amplitude: self.rf.amplitude[index],
-                    phase: self.rf.phase[index],
+                    amplitude: *self.rf.amplitude.get(index).unwrap_or(&0.0),
+                    phase: *self.rf.phase.get(index).unwrap_or(&0.0),
                     frequency: self.rf.frequency,
                 };
 
@@ -102,8 +110,8 @@ impl Backend for DsvSequence {
                 // TODO: no out of bounds protection
                 let index = (t / self.adc.time_step).round() as usize;
                 let adc = crate::AdcBlockSample {
-                    active: self.adc.active[index],
-                    phase: self.adc.phase[index],
+                    active: *self.adc.active.get(index).unwrap_or(&false),
+                    phase: *self.adc.phase.get(index).unwrap_or(&0.0),
                     frequency: self.adc.frequency,
                 };
 

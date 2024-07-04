@@ -48,27 +48,31 @@ impl Adc {
         })
     }
 
+    pub fn duration(&self) -> f64 {
+        self.time_step * self.active.len() as f64
+    }
+
     pub fn encounter(&self, t_start: f64) -> Option<(f64, f64)> {
         let i_start = (t_start / self.time_step).ceil() as usize;
         let (i_start, i_end) = self.events.search(i_start)?;
 
         Some((
             i_start as f64 * self.time_step,
-            i_end as f64 * self.time_step,
+            (i_end + 1) as f64 * self.time_step,
         ))
     }
 
     pub fn events(&self, t_start: f64, t_end: f64, max_count: usize) -> Vec<f64> {
         // TODO Naming: the events inside of the Trigger are blocks and ADC events = samples
         let i_start = (t_start / self.time_step).ceil() as usize;
-        let i_end = (t_end / self.time_step).ceil() as usize;
+        let i_end = (t_end / self.time_step).floor() as usize;
 
         let mut samples = Vec::new();
         for event in self.events.events(i_start, i_end) {
             let a = i_start.max(event.0);
             let b = i_end.min(event.1);
             samples.extend(
-                (a..b)
+                (a..=b)
                     .take(max_count - samples.len())
                     .map(|i| i as f64 * self.time_step),
             )
