@@ -70,19 +70,19 @@ impl Adc {
         let i_start = (t_start / self.time_step).ceil() as usize;
         let i_end = (t_end / self.time_step).floor() as usize;
 
-        let dwell = match self.resolution {
-            Some(res) => (t_end - t_start) / res as f64,
-            None => 10e-6,
-        };
-        let stepsize = (dwell / self.time_step).round().min(1.0) as usize;
-
         let mut samples = Vec::new();
         for event in self.events.events(i_start, i_end) {
             let a = i_start.max(event.0);
-            let b = i_end.min(event.1) + stepsize / 2;
+            let b = i_end.min(event.1);
+
+            let step = match self.resolution {
+                Some(res) => (b - a + 1) / res,
+                None => (10e-6 / self.time_step).max(1.0) as usize,
+            };
+
             samples.extend(
-                (a..=b)
-                    .step_by(stepsize)
+                (a + step / 2..=b)
+                    .step_by(step)
                     .take(max_count - samples.len())
                     .map(|i| i as f64 * self.time_step),
             )
