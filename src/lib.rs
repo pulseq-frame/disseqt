@@ -20,8 +20,8 @@ pub fn load_pulseq<P: AsRef<Path>>(path: P) -> Result<Sequence, pulseq_rs::Error
     )?)))
 }
 
-pub fn load_dsv<P: AsRef<Path>>(path: P) -> Result<Sequence, backend_dsv::Error> {
-    Ok(Sequence(Box::new(backend_dsv::DsvSequence::load(path)?)))
+pub fn load_dsv<P: AsRef<Path>>(path: P, resolution: Option<usize>) -> Result<Sequence, backend_dsv::Error> {
+    Ok(Sequence(Box::new(backend_dsv::DsvSequence::load(path, resolution)?)))
 }
 
 pub fn load_pulseq_str(source: &str) -> Result<Sequence, pulseq_rs::Error> {

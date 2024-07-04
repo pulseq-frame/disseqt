@@ -5,7 +5,7 @@ use disseqt::EventType;
 
 fn import_pulseq(path: &str) -> mr0::Sequence {
     // let parser = disseqt::load_pulseq(path).unwrap();
-    let parser = disseqt::load_dsv(path).unwrap();
+    let parser = disseqt::load_dsv(path, Some(64)).unwrap();
     let mut seq = mr0::Sequence::default();
     let mut t = 0.0;
 

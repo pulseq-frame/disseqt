@@ -18,10 +18,12 @@ pub struct Adc {
     pub frequency: f64,
     /// Location of adc blocks
     events: Trigger,
+    /// Used to calculate the dwell time used in ADC blocks
+    resolution: Option<usize>,
 }
 
 impl Adc {
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn load<P: AsRef<Path>>(path: P, resolution: Option<usize>) -> Result<Self, Error> {
         let active = AdcRaw::load(&path, "ADC")?;
         let phase = AdcRaw::load(&path, "NC1")?;
 
@@ -45,6 +47,7 @@ impl Adc {
             time_step,
             events,
             frequency,
+            resolution,
         })
     }
 
@@ -67,12 +70,19 @@ impl Adc {
         let i_start = (t_start / self.time_step).ceil() as usize;
         let i_end = (t_end / self.time_step).floor() as usize;
 
+        let dwell = match self.resolution {
+            Some(res) => (t_end - t_start) / res as f64,
+            None => 10e-6,
+        };
+        let stepsize = (dwell / self.time_step).round().min(1.0) as usize;
+
         let mut samples = Vec::new();
         for event in self.events.events(i_start, i_end) {
             let a = i_start.max(event.0);
-            let b = i_end.min(event.1);
+            let b = i_end.min(event.1) + stepsize / 2;
             samples.extend(
                 (a..=b)
+                    .step_by(stepsize)
                     .take(max_count - samples.len())
                     .map(|i| i as f64 * self.time_step),
             )

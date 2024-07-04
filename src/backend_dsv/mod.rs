@@ -20,12 +20,12 @@ pub struct DsvSequence {
 }
 
 impl DsvSequence {
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn load<P: AsRef<Path>>(path: P, resolution: Option<usize>) -> Result<Self, Error> {
         let rf = rf::Rf::load(&path)?;
         let gx = grad::Grad::load(&path, "GRX")?;
         let gy = grad::Grad::load(&path, "GRY")?;
         let gz = grad::Grad::load(&path, "GRZ")?;
-        let adc = adc::Adc::load(path)?;
+        let adc = adc::Adc::load(path, resolution)?;
 
         Ok(Self {
             rf,
