@@ -23,24 +23,30 @@ pub struct Rf {
 impl Rf {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let amplitude = RfRaw::load(&path, "RFD")?;
-        let mut phase = RfRaw::load(path, "RFP")?;
 
-        // TODO: return errors instead of panicking
-        assert_eq!(amplitude.data.len(), phase.data.len());
-        assert_eq!(amplitude.time_step, phase.time_step);
-        assert_eq!(amplitude.frequency, phase.frequency);
+        // Seems like there is not always an RFP file
+        let phase = if let Ok(mut phase) = RfRaw::load(path, "RFP") {
+            // TODO: return errors instead of panicking
+            assert_eq!(amplitude.data.len(), phase.data.len());
+            assert_eq!(amplitude.time_step, phase.time_step);
+            assert_eq!(amplitude.frequency, phase.frequency);
+    
+            // Convert degrees to radians
+            for x in &mut phase.data {
+                *x = *x * std::f64::consts::PI / 180.0;
+            }
+            phase.data
+        } else {
+            vec![0.0; amplitude.data.len()]
+        };
 
-        // Convert degrees to radians
-        for x in &mut phase.data {
-            *x = *x * std::f64::consts::PI / 180.0;
-        }
 
         let events = Trigger::new(&amplitude.data);
         println!("{events:?}");
 
         Ok(Self {
             amplitude: amplitude.data,
-            phase: phase.data,
+            phase,
             time_step: amplitude.time_step,
             frequency: amplitude.frequency,
             events,
