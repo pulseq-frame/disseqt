@@ -13,7 +13,7 @@ impl DsvFile {
         let file_path = path
             .as_ref()
             .with_file_name(format!("{file_name}_{which_dsv}.dsv"));
-        let file_buf = std::fs::read(file_path).unwrap();
+        let file_buf = std::fs::read(file_path.clone()).map_err(|_| Error::FileNotFound(file_path))?;
         let file_str = String::from_utf8_lossy(&file_buf);
 
         let definitions_raw = file_str
