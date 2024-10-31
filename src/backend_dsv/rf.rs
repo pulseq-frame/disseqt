@@ -30,7 +30,7 @@ impl Rf {
             assert_eq!(amplitude.data.len(), phase.data.len());
             assert_eq!(amplitude.time_step, phase.time_step);
             assert_eq!(amplitude.frequency, phase.frequency);
-    
+
             // Convert degrees to radians
             for x in &mut phase.data {
                 *x = *x * std::f64::consts::PI / 180.0;
@@ -39,7 +39,6 @@ impl Rf {
         } else {
             vec![0.0; amplitude.data.len()]
         };
-
 
         let events = Trigger::new(&amplitude.data);
         println!("{events:?}");
@@ -108,7 +107,10 @@ impl Rf {
                 t1 - t0
             };
 
-            *spin *= util::Rotation::new(self.amplitude[i] * dur * std::f64::consts::TAU, self.phase[i]);
+            *spin *= util::Rotation::new(
+                self.amplitude[i] * dur * std::f64::consts::TAU,
+                self.phase[i],
+            );
         }
     }
 }
@@ -120,7 +122,11 @@ struct RfRaw {
     frequency: f64,
 }
 impl RfRaw {
-    pub fn load<P: AsRef<Path>>(path: P, which_dsv: &str, ref_voltage: Option<f64>) -> Result<Self, Error> {
+    pub fn load<P: AsRef<Path>>(
+        path: P,
+        which_dsv: &str,
+        ref_voltage: Option<f64>,
+    ) -> Result<Self, Error> {
         let dsv = DsvFile::load(&path, which_dsv)?;
 
         // TODO: don't unwrap but return the parse errors

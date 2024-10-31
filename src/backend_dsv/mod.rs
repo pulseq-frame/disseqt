@@ -32,7 +32,11 @@ pub struct DsvSequence {
 }
 
 impl DsvSequence {
-    pub fn load<P: AsRef<Path>>(path: P, resolution: Option<usize>, ref_voltage: f64) -> Result<Self, Error> {
+    pub fn load<P: AsRef<Path>>(
+        path: P,
+        resolution: Option<usize>,
+        ref_voltage: f64,
+    ) -> Result<Self, Error> {
         let rf = rf::Rf::load(&path, ref_voltage)?;
         let gx = grad::Grad::load(&path, "GRX")?;
         let gy = grad::Grad::load(&path, "GRY")?;

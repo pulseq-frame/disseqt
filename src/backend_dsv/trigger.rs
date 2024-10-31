@@ -73,7 +73,11 @@ impl Trigger {
         }
     }
 
-    pub fn events(&self, i_start: usize, i_end: usize) -> impl Iterator<Item = (usize, usize)> + '_ {
+    pub fn events(
+        &self,
+        i_start: usize,
+        i_end: usize,
+    ) -> impl Iterator<Item = (usize, usize)> + '_ {
         // Index of the first event overlapping with the time range
         let idx = match self
             .events
