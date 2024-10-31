@@ -2,7 +2,7 @@ use disseqt::EventType;
 
 fn main() {
     // let seq = disseqt::load_pulseq("examples/gre.seq").unwrap();
-    let seq = disseqt::load_dsv("examples/3DSnapshotGRE_Comparision_E_0_64_64_8_alternating_fully_sampled/SimulationProtocol", Some(64)).unwrap();
+    let seq = disseqt::load_dsv("examples/3DSnapshotGRE_Comparision_E_0_64_64_8_alternating_fully_sampled/SimulationProtocol", Some(64), 340.0).unwrap();
 
     let (t_start, t_end) = seq.encounter(0.0, EventType::RfPulse).unwrap();
 
