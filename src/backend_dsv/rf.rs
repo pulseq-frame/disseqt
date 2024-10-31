@@ -108,8 +108,7 @@ impl Rf {
                 t1 - t0
             };
 
-            // TODO: conversion from volts to frequency
-            *spin *= util::Rotation::new(self.amplitude[i] * dur * 100.0, self.phase[i]);
+            *spin *= util::Rotation::new(self.amplitude[i] * dur * std::f64::consts::TAU, self.phase[i]);
         }
     }
 }
