@@ -33,7 +33,8 @@ pub struct DsvSequence {
 
 impl DsvSequence {
     pub fn load<P: AsRef<Path>>(path: P, resolution: Option<usize>) -> Result<Self, Error> {
-        let rf = rf::Rf::load(&path)?;
+        const REF_VOLTAGE: f64 = 340.0; // Todo: load from INF.dsv file
+        let rf = rf::Rf::load(&path, REF_VOLTAGE)?;
         let gx = grad::Grad::load(&path, "GRX")?;
         let gy = grad::Grad::load(&path, "GRY")?;
         let gz = grad::Grad::load(&path, "GRZ")?;

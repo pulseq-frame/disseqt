@@ -21,11 +21,11 @@ pub struct Rf {
 }
 
 impl Rf {
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
-        let amplitude = RfRaw::load(&path, "RFD")?;
+    pub fn load<P: AsRef<Path>>(path: P, ref_voltage: f64) -> Result<Self, Error> {
+        let amplitude = RfRaw::load(&path, "RFD", Some(ref_voltage))?;
 
         // Seems like there is not always an RFP file
-        let phase = if let Ok(mut phase) = RfRaw::load(path, "RFP") {
+        let phase = if let Ok(mut phase) = RfRaw::load(path, "RFP", None) {
             // TODO: return errors instead of panicking
             assert_eq!(amplitude.data.len(), phase.data.len());
             assert_eq!(amplitude.time_step, phase.time_step);
@@ -121,19 +121,19 @@ struct RfRaw {
     frequency: f64,
 }
 impl RfRaw {
-    pub fn load<P: AsRef<Path>>(path: P, which_dsv: &str) -> Result<Self, Error> {
+    pub fn load<P: AsRef<Path>>(path: P, which_dsv: &str, ref_voltage: Option<f64>) -> Result<Self, Error> {
         let dsv = DsvFile::load(&path, which_dsv)?;
 
         // TODO: don't unwrap but return the parse errors
         // TODO: do the same with key errors (currently panics)
         let num_samples: usize = dsv.definitions["SAMPLES"].parse().unwrap();
-        let time_step = dsv.definitions["HORIDELTA"].parse::<f64>().unwrap() * 1e-6;
-        let volt_step = 1.0 / dsv.definitions["VERTFACTOR"].parse::<f64>().unwrap();
+        let time_step = dsv.time_step();
+        let amp_step = dsv.amp_step(ref_voltage);
         let frequency = dsv.definitions["NOMINALFREQUENCY"].parse::<f64>().unwrap();
 
         let data: Vec<f64> = decompress_shape(dsv.values, num_samples)
             .into_iter()
-            .map(|x| x as f64 * volt_step)
+            .map(|x| x as f64 * amp_step)
             .collect();
 
         Ok(Self {

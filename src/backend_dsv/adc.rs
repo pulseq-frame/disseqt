@@ -104,8 +104,8 @@ impl AdcRaw {
         // TODO: don't unwrap but return the parse errors
         // TODO: do the same with key errors (currently panics)
         let num_samples: usize = dsv.definitions["SAMPLES"].parse().unwrap();
-        let time_step = dsv.definitions["HORIDELTA"].parse::<f64>().unwrap() * 1e-6;
-        let amp_step = 1.0 / dsv.definitions["VERTFACTOR"].parse::<f64>().unwrap();
+        let amp_step = dsv.amp_step(None);
+        let time_step = dsv.time_step();
 
         let frequency = dsv
             .definitions
