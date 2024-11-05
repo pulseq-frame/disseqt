@@ -58,7 +58,7 @@ impl Sequence {
     }
 
     pub fn sample_one(&self, t: f64) -> Sample {
-        self.0.sample(&[t])[0]
+        self.0.sample(&[t])[0].clone()
     }
 
     pub fn integrate(&self, time: &[f64]) -> MomentVec {

@@ -115,6 +115,7 @@ impl Backend for DsvSequence {
                     amplitude: *self.rf.amplitude.get(index).unwrap_or(&0.0),
                     phase: *self.rf.phase.get(index).unwrap_or(&0.0),
                     frequency: self.rf.frequency,
+                    shim: None,
                 };
 
                 let gradient = crate::GradientSample {
