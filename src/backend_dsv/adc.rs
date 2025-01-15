@@ -75,17 +75,29 @@ impl Adc {
             let a = i_start.max(event.0);
             let b = i_end.min(event.1);
 
-            let step = match self.resolution {
-                Some(res) => (b - a + 1) / res,
-                None => (10e-6 / self.time_step).max(1.0) as usize,
-            };
+            match self.resolution {
+                Some(res) => {
+                    let adc_start = a as f64 * self.time_step;
+                    let adc_end = (b + 1) as f64 * self.time_step;
+                    let dwell = (adc_end - adc_start) / res as f64;
 
-            samples.extend(
-                (a + step / 2..=b)
-                    .step_by(step)
-                    .take(max_count - samples.len())
-                    .map(|i| i as f64 * self.time_step),
-            )
+                    samples.extend(
+                        (0..res)
+                            .take(max_count - samples.len())
+                            .map(|i| adc_start + (i as f64 + 0.5) * dwell),
+                    );
+                }
+                None => {
+                    let step = (10e-6 / self.time_step).max(1.0) as usize;
+
+                    samples.extend(
+                        (a + step / 2..=b)
+                            .step_by(step)
+                            .take(max_count - samples.len())
+                            .map(|i| i as f64 * self.time_step),
+                    );
+                }
+            }
         }
 
         samples
