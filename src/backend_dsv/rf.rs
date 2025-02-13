@@ -25,7 +25,7 @@ impl Rf {
         let amplitude = RfRaw::load(&path, "RFD", Some(ref_voltage))?;
 
         // Seems like there is not always an RFP file
-        let phase = if let Ok(mut phase) = RfRaw::load(path, "RFP", None) {
+        let phase = if let Ok(mut phase) = RfRaw::load(&path, "RFP", None) {
             // TODO: return errors instead of panicking
             assert_eq!(amplitude.data.len(), phase.data.len());
             assert_eq!(amplitude.time_step, phase.time_step);
@@ -37,7 +37,17 @@ impl Rf {
             }
             phase.data
         } else {
-            vec![0.0; amplitude.data.len()]
+            // Try to load the data from the ADC file
+            if let Ok(nco) = RfRaw::load(&path, "NC1", None) {
+                let step = nco.data.len() / amplitude.data.len();
+                if amplitude.data.len() * step == nco.data.len() && step <= 10 {
+                    nco.data.into_iter().step_by(step).collect()
+                } else {
+                    vec![0.0; amplitude.data.len()]
+                }
+            } else {
+                vec![0.0; amplitude.data.len()]
+            }
         };
 
         let events = Trigger::new(&amplitude.data);
