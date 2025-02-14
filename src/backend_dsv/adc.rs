@@ -104,8 +104,8 @@ impl Adc {
     }
 }
 
-struct AdcRaw {
-    data: Vec<f64>,
+pub struct AdcRaw {
+    pub data: Vec<f64>,
     time_step: f64,
     frequency: Option<f64>,
 }

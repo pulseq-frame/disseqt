@@ -38,7 +38,7 @@ impl Rf {
             phase.data
         } else {
             // Try to load the data from the ADC file
-            if let Ok(nco) = RfRaw::load(&path, "NC1", None) {
+            if let Ok(nco) = crate::backend_dsv::adc::AdcRaw::load(&path, "NC1") {
                 let step = nco.data.len() / amplitude.data.len();
                 if amplitude.data.len() * step == nco.data.len() && step <= 10 {
                     nco.data.into_iter().step_by(step).collect()
@@ -51,7 +51,7 @@ impl Rf {
         };
 
         let events = Trigger::new(&amplitude.data);
-        println!("{events:?}");
+        // println!("{events:?}");
 
         Ok(Self {
             amplitude: amplitude.data,
