@@ -34,11 +34,7 @@ impl Adc {
         let events = Trigger::new(&active.data);
         let time_step = active.time_step;
         let frequency = active.frequency.unwrap_or(0.0);
-        let phase = phase
-            .data
-            .into_iter()
-            .map(|x| x * std::f64::consts::PI / 180.0)
-            .collect();
+        let phase = phase.data;
         let active = active.data.into_iter().map(|x| x > 0.5).collect();
 
         Ok(Self {
