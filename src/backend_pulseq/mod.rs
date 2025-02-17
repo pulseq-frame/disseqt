@@ -18,11 +18,6 @@ impl PulseqSequence {
         Ok(Self::from_seq(seq))
     }
 
-    pub fn load_str(source: &str) -> Result<Self, pulseq_rs::Error> {
-        let seq = pulseq_rs::Sequence::from_source(source)?;
-        Ok(Self::from_seq(seq))
-    }
-
     fn from_seq(seq: pulseq_rs::Sequence) -> Self {
         let blocks = seq
             .blocks

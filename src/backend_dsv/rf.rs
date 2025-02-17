@@ -25,16 +25,11 @@ impl Rf {
         let amplitude = RfRaw::load(&path, "RFD", Some(ref_voltage))?;
 
         // Seems like there is not always an RFP file
-        let phase = if let Ok(mut phase) = RfRaw::load(&path, "RFP", None) {
+        let phase = if let Ok(phase) = RfRaw::load(&path, "RFP", None) {
             // TODO: return errors instead of panicking
             assert_eq!(amplitude.data.len(), phase.data.len());
             assert_eq!(amplitude.time_step, phase.time_step);
             assert_eq!(amplitude.frequency, phase.frequency);
-
-            // Convert degrees to radians
-            for x in &mut phase.data {
-                *x = *x * std::f64::consts::PI / 180.0;
-            }
             phase.data
         } else {
             // Try to load the data from the ADC file
