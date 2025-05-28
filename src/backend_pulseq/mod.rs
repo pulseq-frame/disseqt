@@ -334,7 +334,7 @@ impl PulseqSequence {
             {
                 AdcBlockSample {
                     active: true,
-                    phase: adc.phase,
+                    phase: adc.phase + adc.freq * (t - *block_start - adc.delay),
                     frequency: adc.freq,
                 }
             } else {
