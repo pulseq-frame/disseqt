@@ -18,11 +18,6 @@ impl PulseqSequence {
         Ok(Self::from_seq(seq))
     }
 
-    pub fn load_str(source: &str) -> Result<Self, pulseq_rs::Error> {
-        let seq = pulseq_rs::Sequence::from_source(source)?;
-        Ok(Self::from_seq(seq))
-    }
-
     fn from_seq(seq: pulseq_rs::Sequence) -> Self {
         let blocks = seq
             .blocks
@@ -306,10 +301,15 @@ impl PulseqSequence {
         let pulse_sample = if let Some(rf) = &block.rf {
             let index = ((t - block_start - rf.delay) / self.raster.rf - 0.5).ceil() as usize;
             if index < rf.amp_shape.0.len() {
+                let shim = rf.shim_shape.as_ref().map(|(mag, phase)| {
+                    assert_eq!(mag.0.len(), phase.0.len());
+                    mag.0.iter().zip(&phase.0).map(|(&m, &p)| (m, p)).collect()
+                });
                 RfPulseSample {
                     amplitude: rf.amp * rf.amp_shape.0[index],
                     phase: rf.phase + rf.phase_shape.0[index] * std::f64::consts::TAU,
                     frequency: rf.freq,
+                    shim,
                 }
             } else {
                 RfPulseSample::default()

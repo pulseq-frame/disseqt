@@ -3,7 +3,7 @@
 // sample() types
 
 /// Contains the RF Pulse state for a single point in time.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 pub struct RfPulseSample {
     /// Unit: `Hz`
     pub amplitude: f64,
@@ -11,6 +11,8 @@ pub struct RfPulseSample {
     pub phase: f64,
     /// Unit: `Hz`
     pub frequency: f64,
+    /// Array of channel (amplitude, phase)
+    pub shim: Option<Vec<(f64, f64)>>,
 }
 
 /// Contains the gradient amplitudes for a single point in time.
@@ -39,7 +41,7 @@ pub struct AdcBlockSample {
 }
 
 /// See `RfPulseSample`, `GradientSample` and `AdcBlockSample`
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 pub struct Sample {
     pub pulse: RfPulseSample,
     pub gradient: GradientSample,

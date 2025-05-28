@@ -1,8 +1,5 @@
 use std::ops::MulAssign;
 
-// Internally, a double precision is used, but interfaces are in single precision.
-// This is done to reduce accumulation of errors, but all other code still uses f64.
-
 pub struct Spin([f64; 3]);
 
 impl Spin {

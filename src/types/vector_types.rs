@@ -5,6 +5,7 @@ pub struct RfPulseSampleVec {
     pub amplitude: Vec<f64>,
     pub phase: Vec<f64>,
     pub frequency: Vec<f64>,
+    pub shim: Vec<Option<Vec<(f64, f64)>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -59,6 +60,7 @@ impl From<Vec<Sample>> for SampleVec {
             amplitude: value.iter().map(|s| s.pulse.amplitude).collect(),
             phase: value.iter().map(|s| s.pulse.phase).collect(),
             frequency: value.iter().map(|s| s.pulse.frequency).collect(),
+            shim: value.iter().map(|s| s.pulse.shim.clone()).collect(),
         };
         let gradient = GradientSampleVec {
             x: value.iter().map(|s| s.gradient.x).collect(),
