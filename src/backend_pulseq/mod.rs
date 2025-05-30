@@ -334,7 +334,7 @@ impl PulseqSequence {
             {
                 AdcBlockSample {
                     active: true,
-                    phase: adc.phase + adc.freq * (t - *block_start - adc.delay),
+                    phase: adc.phase - adc.freq * std::f64::consts::TAU * (t - *block_start - adc.delay),
                     frequency: adc.freq,
                 }
             } else {
