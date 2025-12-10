@@ -1,7 +1,7 @@
 mod backend_dsv;
 mod backend_pulseq;
+mod rotation;
 mod types;
-mod util;
 
 pub use pulseq_rs::Error;
 use std::path::Path;

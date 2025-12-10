@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{types::*, util, Backend};
+use crate::{rotation, types::*, Backend};
 use pulseq_rs::Gradient;
 
 mod helpers;
@@ -233,8 +233,7 @@ impl PulseqSequence {
             Err(idx) => idx.max(1) - 1, // start before the insertion point
         };
 
-        // let mut spin = util::Spin::relaxed();
-        let mut rf_rot = util::Rotation::Identity;
+        let mut rf_rot = rotation::Rotation::new();
         let mut grad = GradientMoment {
             x: 0.0,
             y: 0.0,
@@ -272,7 +271,7 @@ impl PulseqSequence {
                 );
             }
             if let Some(rf) = block.rf.as_ref() {
-                rf_rot = rf_rot.rotate(helpers::integrate_rf(
+                rf_rot = rf_rot.then(helpers::integrate_rf(
                     rf,
                     t_start,
                     t_end,

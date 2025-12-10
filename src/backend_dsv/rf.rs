@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{backend_dsv::trigger::Trigger, util::Rotation};
+use crate::{backend_dsv::trigger::Trigger, rotation::Rotation};
 
 use super::{
     helpers::{decompress_shape, DsvFile},
@@ -88,7 +88,7 @@ impl Rf {
         // TODO: this is not performant for integrations over long time periods
         // because it will sum up all zeros of the empty space between pulses
         let i_start = (t_start / self.time_step).floor() as usize;
-        let mut rot = Rotation::Identity;
+        let mut rot = Rotation::new();
 
         for i in i_start..self.amplitude.len() {
             let t = i as f64 * self.time_step;
@@ -113,10 +113,10 @@ impl Rf {
                 t1 - t0
             };
 
-            rot = rot.rotate(Rotation::Simple {
-                angle: self.amplitude[i] * dur * std::f64::consts::TAU,
-                phase: self.phase[i],
-            });
+            rot = rot.rotate(
+                self.amplitude[i] * dur * std::f64::consts::TAU,
+                self.phase[i],
+            );
         }
 
         rot

@@ -1,6 +1,6 @@
 use pulseq_rs::{Gradient, Rf, Shape};
 
-use crate::util::Rotation;
+use crate::rotation::Rotation;
 
 pub fn integrate_grad(
     gx: &Gradient,
@@ -45,7 +45,7 @@ pub fn integrate_rf(
     block_start: f64,
     rf_raster: f64,
 ) -> Rotation {
-    let mut rot = Rotation::identity();
+    let mut rot = Rotation::new();
 
     for i in 0..rf.amp_shape.0.len() {
         let dwell = rf_raster;
@@ -72,10 +72,10 @@ pub fn integrate_rf(
             t1 - t0
         };
 
-        rot = rot.rotate(Rotation::Simple {
-            angle: rf.amp * rf.amp_shape.0[i] * dur * std::f64::consts::TAU,
-            phase: rf.phase + rf.phase_shape.0[i] * std::f64::consts::TAU,
-        });
+        rot = rot.rotate(
+            rf.amp * rf.amp_shape.0[i] * dur * std::f64::consts::TAU,
+            rf.phase + rf.phase_shape.0[i] * std::f64::consts::TAU,
+        );
     }
 
     rot

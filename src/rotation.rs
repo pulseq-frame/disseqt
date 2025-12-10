@@ -9,22 +9,25 @@
 /// This struct tries to do the former and switches to the latter if the phase
 /// of the pulse (rotation axis) turns out to be not constant.
 #[derive(Clone, Copy, Debug)]
-pub enum Rotation {
+pub struct Rotation(RotRepr);
+
+#[derive(Clone, Copy, Debug)]
+enum RotRepr {
     Identity,
     Simple { angle: f64, phase: f64 },
     Complex { dir: [f64; 3] },
 }
 
 impl Rotation {
-    pub fn identity() -> Self {
-        Self::Identity
+    pub fn new() -> Self {
+        Self(RotRepr::Identity)
     }
 
     pub fn angle(&self) -> f64 {
-        match self {
-            Rotation::Identity => 0.0,
-            Rotation::Simple { angle, .. } => *angle,
-            Rotation::Complex { dir: spin } => {
+        match self.0 {
+            RotRepr::Identity => 0.0,
+            RotRepr::Simple { angle, .. } => angle,
+            RotRepr::Complex { dir: spin } => {
                 // Normalize because error can build up during rotations
                 let norm = (spin[0] * spin[0] + spin[1] * spin[1] + spin[2] * spin[2]).sqrt();
                 (spin[2] / norm).acos()
@@ -33,10 +36,10 @@ impl Rotation {
     }
 
     pub fn phase(&self) -> f64 {
-        match self {
-            Rotation::Identity => 0.0,
-            Rotation::Simple { phase, .. } => *phase,
-            Rotation::Complex { dir: spin } => {
+        match self.0 {
+            RotRepr::Identity => 0.0,
+            RotRepr::Simple { phase, .. } => phase,
+            RotRepr::Complex { dir: spin } => {
                 // We want the phase of the applied rotation, not of the spin itself
                 let tmp = f64::atan2(spin[1], spin[0]) + std::f64::consts::FRAC_PI_2;
                 // Map to the range [0, 2*pi]
@@ -49,56 +52,61 @@ impl Rotation {
         }
     }
 
-    pub fn rotate(&self, rot: Self) -> Self {
-        match (*self, rot) {
-            (Rotation::Identity, rot) | (rot, Rotation::Identity) => rot,
+    pub fn rotate(&self, angle: f64, phase: f64) -> Self {
+        self.then(Self(RotRepr::Simple { angle, phase }))
+    }
+
+    pub fn then(&self, rot: Self) -> Self {
+        Self(match (self.0, rot.0) {
+            (RotRepr::Identity, rot) | (rot, RotRepr::Identity) => rot,
             (
-                Rotation::Simple {
+                RotRepr::Simple {
                     angle: a1,
                     phase: p1,
                 },
-                Rotation::Simple {
+                RotRepr::Simple {
                     angle: a2,
                     phase: p2,
                 },
             ) if p1.abs() == p2.abs() => {
                 // TODO: proper sign logic!
-                Rotation::Simple {
+                RotRepr::Simple {
                     angle: a1 + p2.signum() * a2,
                     phase: p1,
                 }
             }
-            _ => Rotation::Complex {
-                dir: rot.as_rot_mat().rotate(self.as_dir_vec()),
-            },
-        }
-    }
-
-    fn as_rot_mat(&self) -> RotMat {
-        match self {
-            Rotation::Identity => RotMat::new(0.0, 0.0),
-            Rotation::Simple { angle, phase } => RotMat::new(*angle, *phase),
-            Rotation::Complex { .. } => RotMat::new(self.angle(), self.phase()),
-        }
-    }
-
-    fn as_dir_vec(&self) -> [f64; 3] {
-        match self {
-            Rotation::Identity => [0.0, 0.0, 1.0],
-            Rotation::Simple { angle, phase } => {
-                RotMat::new(*angle, *phase).rotate([0.0, 0.0, 1.0])
-            }
-            Rotation::Complex { dir } => *dir,
-        }
+            _ => complex_rotation(self.0, rot.0),
+        })
     }
 }
 
-pub struct RotMat([[f64; 3]; 3]);
+/// If rotations are joined that differ in their rotation matrix, we can't
+/// track the accumulated angle anymore but actually have to join them and see
+/// what the final rotation looks like. We do this by applying them to a vector
+/// and see where it points at afterwards. This is done in this function.
+fn complex_rotation(first: RotRepr, second: RotRepr) -> RotRepr {
+    let vec_rotated_by_first = match first {
+        RotRepr::Identity => [0.0, 0.0, 1.0],
+        RotRepr::Simple { angle, phase } => RotMat::new(angle, phase).apply([0.0, 0.0, 1.0]),
+        RotRepr::Complex { dir } => dir,
+    };
+
+    let rot_mat_representing_second = match second {
+        RotRepr::Identity => RotMat::new(0.0, 0.0),
+        RotRepr::Simple { angle, phase } => RotMat::new(angle, phase),
+        RotRepr::Complex { .. } => RotMat::new(Rotation(second).angle(), Rotation(second).phase()),
+    };
+
+    RotRepr::Complex {
+        dir: rot_mat_representing_second.apply(vec_rotated_by_first),
+    }
+}
+
+/// Helper for applying a rotation (angle, phase) to a vector
+struct RotMat([[f64; 3]; 3]);
 
 impl RotMat {
-    pub fn new(angle: f64, phase: f64) -> Self {
-        let angle = angle as f64;
-        let phase = phase as f64;
+    fn new(angle: f64, phase: f64) -> Self {
         Self([
             [
                 angle.cos() * phase.sin().powi(2) + phase.cos().powi(2),
@@ -118,7 +126,7 @@ impl RotMat {
         ])
     }
 
-    pub fn rotate(&self, dir: [f64; 3]) -> [f64; 3] {
+    fn apply(&self, dir: [f64; 3]) -> [f64; 3] {
         let x = self.0[0][0] * dir[0] + self.0[0][1] * dir[1] + self.0[0][2] * dir[2];
         let y = self.0[1][0] * dir[0] + self.0[1][1] * dir[1] + self.0[1][2] * dir[2];
         let z = self.0[2][0] * dir[0] + self.0[2][1] * dir[1] + self.0[2][2] * dir[2];
@@ -137,8 +145,8 @@ mod tests {
             let angle = rand::random::<f64>() * std::f64::consts::PI;
             let phase = rand::random::<f64>() * std::f64::consts::TAU;
 
-            let mut rot = Rotation::identity();
-            rot = rot.rotate(Rotation::Simple { angle, phase });
+            let mut rot = Rotation::new();
+            rot = rot.rotate(angle, phase);
 
             check!((rot.angle() - angle).abs() < 1e-6);
             check!((rot.phase() - phase).abs() < 1e-6);
@@ -151,13 +159,10 @@ mod tests {
             let angle = rand::random::<f64>() * std::f64::consts::PI;
             let phase = rand::random::<f64>() * std::f64::consts::TAU;
 
-            let mut rot = Rotation::Identity;
+            let mut rot = Rotation::new();
             let subsamples = rand::random::<u32>() % 100 + 1;
             for _ in 0..subsamples {
-                rot = rot.rotate(Rotation::Simple {
-                    angle: angle / subsamples as f64,
-                    phase,
-                });
+                rot = rot.rotate(angle / subsamples as f64, phase);
             }
 
             check!((rot.angle() - angle).abs() < 1e-6);
