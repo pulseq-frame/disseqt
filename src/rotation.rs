@@ -18,6 +18,10 @@ enum RotRepr {
     Complex { dir: [f64; 3] },
 }
 
+/// If phase difference between two rotations is less then this value, they
+/// are combined as a `Simple` rotation where angles are simply summed together
+const MAX_PHASE_DIFF: f64 = 1e-7;
+
 impl Rotation {
     pub fn new() -> Self {
         Self(RotRepr::Identity)
@@ -68,15 +72,40 @@ impl Rotation {
                     angle: a2,
                     phase: p2,
                 },
-            ) if p1.abs() == p2.abs() => {
-                // TODO: proper sign logic!
-                RotRepr::Simple {
-                    angle: a1 + p2.signum() * a2,
-                    phase: p1,
-                }
-            }
+            ) => simple_rotation(a1, p1, a2, p2),
             _ => complex_rotation(self.0, rot.0),
         })
+    }
+}
+
+/// If the two rotations (a1, p1) and (a2, p2) have the same phase, returns a
+/// combined rotation (a1 + a2, p) where p is some normalized phase.
+/// If the phase differs too much, returns a complex rotation.
+fn simple_rotation(a1: f64, p1: f64, a2: f64, p2: f64) -> RotRepr {
+    use std::f64::consts::{PI, TAU, FRAC_PI_2};
+
+    // The phase difference between both phases, mapped to the [-pi, pi] range.
+    let phase_diff = (p2 - p1 + PI).rem_euclid(TAU) - PI;
+
+    if phase_diff.abs() > MAX_PHASE_DIFF {
+        return complex_rotation(
+            RotRepr::Simple {
+                angle: a1,
+                phase: p1,
+            },
+            RotRepr::Simple {
+                angle: a2,
+                phase: p2,
+            },
+        );
+    }
+
+    // Now we know the phase difference is small enough.
+    // If the rotation axis is pointing in different directions, flip sign.
+    if phase_diff.abs() < FRAC_PI_2 {
+        RotRepr::Simple { angle: a1 + a2, phase: p1 }
+    } else {
+        RotRepr::Simple { angle: a1 - a2, phase: p1 }
     }
 }
 
