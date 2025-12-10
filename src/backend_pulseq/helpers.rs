@@ -1,6 +1,6 @@
 use pulseq_rs::{Gradient, Rf, Shape};
 
-use crate::util::{Rotation};
+use crate::util::Rotation;
 
 pub fn integrate_grad(
     gx: &Gradient,

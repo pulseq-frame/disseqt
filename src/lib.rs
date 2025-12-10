@@ -3,9 +3,9 @@ mod backend_pulseq;
 mod types;
 mod util;
 
+pub use pulseq_rs::Error;
 use std::path::Path;
 pub use types::*;
-pub use pulseq_rs::Error;
 
 pub fn load_pulseq<P: AsRef<Path>>(path: P) -> Result<Sequence, pulseq_rs::Error> {
     Ok(Sequence(Box::new(backend_pulseq::PulseqSequence::load(

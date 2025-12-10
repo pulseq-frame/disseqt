@@ -1,9 +1,6 @@
 use std::path::Path;
 
-use crate::{
-    backend_dsv::trigger::Trigger,
-    util::{ Rotation},
-};
+use crate::{backend_dsv::trigger::Trigger, util::Rotation};
 
 use super::{
     helpers::{decompress_shape, DsvFile},

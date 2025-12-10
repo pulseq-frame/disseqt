@@ -126,10 +126,9 @@ impl RotMat {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::{Rotation};
+    use super::Rotation;
     use assert2::check;
 
     #[test]
@@ -155,7 +154,10 @@ mod tests {
             let mut rot = Rotation::Identity;
             let subsamples = rand::random::<u32>() % 100 + 1;
             for _ in 0..subsamples {
-                rot = rot.rotate(Rotation::Simple { angle: angle / subsamples as f64, phase });
+                rot = rot.rotate(Rotation::Simple {
+                    angle: angle / subsamples as f64,
+                    phase,
+                });
             }
 
             check!((rot.angle() - angle).abs() < 1e-6);

@@ -272,8 +272,13 @@ impl PulseqSequence {
                 );
             }
             if let Some(rf) = block.rf.as_ref() {
-                rf_rot = rf_rot.rotate(helpers::integrate_rf(rf, t_start, t_end, *block_start, self.raster.rf));
-                // helpers::integrate_rf(rf, &mut spin, t_start, t_end, *block_start, self.raster.rf);
+                rf_rot = rf_rot.rotate(helpers::integrate_rf(
+                    rf,
+                    t_start,
+                    t_end,
+                    *block_start,
+                    self.raster.rf,
+                ));
             }
         }
 
@@ -338,7 +343,8 @@ impl PulseqSequence {
             {
                 AdcBlockSample {
                     active: true,
-                    phase: adc.phase - adc.freq * std::f64::consts::TAU * (t - *block_start - adc.delay),
+                    phase: adc.phase
+                        - adc.freq * std::f64::consts::TAU * (t - *block_start - adc.delay),
                     frequency: adc.freq,
                 }
             } else {
