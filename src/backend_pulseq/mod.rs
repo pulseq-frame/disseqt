@@ -233,7 +233,8 @@ impl PulseqSequence {
             Err(idx) => idx.max(1) - 1, // start before the insertion point
         };
 
-        let mut spin = util::Spin::relaxed();
+        // let mut spin = util::Spin::relaxed();
+        let mut rf_rot = util::Rotation::Identity;
         let mut grad = GradientMoment {
             x: 0.0,
             y: 0.0,
@@ -271,14 +272,17 @@ impl PulseqSequence {
                 );
             }
             if let Some(rf) = block.rf.as_ref() {
-                helpers::integrate_rf(rf, &mut spin, t_start, t_end, *block_start, self.raster.rf);
+                rf_rot = rf_rot.rotate(helpers::integrate_rf(rf, t_start, t_end, *block_start, self.raster.rf));
+                // helpers::integrate_rf(rf, &mut spin, t_start, t_end, *block_start, self.raster.rf);
             }
         }
 
+        // the `sign` negates the output if t_start < t_end.
+        // NOTE: is this correct for reversing rotations?
         (
             RfPulseMoment {
-                angle: sign * spin.angle(),
-                phase: sign * spin.phase(),
+                angle: sign * rf_rot.angle(),
+                phase: sign * rf_rot.phase(),
             },
             GradientMoment {
                 x: sign * grad.x,

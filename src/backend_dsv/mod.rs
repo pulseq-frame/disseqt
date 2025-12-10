@@ -1,4 +1,4 @@
-use crate::{util, Backend, Moment};
+use crate::{Backend, Moment};
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
@@ -144,12 +144,12 @@ impl Backend for DsvSequence {
     fn integrate(&self, time: &[f64]) -> Vec<Moment> {
         let mut moments = Vec::new();
         for t in time.windows(2) {
-            let mut spin = util::Spin::relaxed();
-            self.rf.integrate(&mut spin, t[0], t[1]);
+            // let mut spin = util::Spin::relaxed();
+            let rot = self.rf.integrate(t[0], t[1]);
 
             let pulse = crate::RfPulseMoment {
-                angle: spin.angle(),
-                phase: spin.phase(),
+                angle: rot.angle(),
+                phase: rot.phase(),
             };
             moments.push(Moment {
                 pulse,

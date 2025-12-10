@@ -1,6 +1,6 @@
 use pulseq_rs::{Gradient, Rf, Shape};
 
-use crate::util::{Rotation, Spin};
+use crate::util::{Rotation};
 
 pub fn integrate_grad(
     gx: &Gradient,
@@ -40,12 +40,13 @@ pub fn integrate_grad(
 // that is returned from this function
 pub fn integrate_rf(
     rf: &Rf,
-    spin: &mut Spin,
     t_start: f64,
     t_end: f64,
     block_start: f64,
     rf_raster: f64,
-) {
+) -> Rotation {
+    let mut rot = Rotation::identity();
+
     for i in 0..rf.amp_shape.0.len() {
         let dwell = rf_raster;
         // Start time of the sample number i
@@ -71,11 +72,13 @@ pub fn integrate_rf(
             t1 - t0
         };
 
-        *spin *= Rotation::new(
-            rf.amp * rf.amp_shape.0[i] * dur * std::f64::consts::TAU,
-            rf.phase + rf.phase_shape.0[i] * std::f64::consts::TAU,
-        );
+        rot = rot.rotate(Rotation::Simple {
+            angle: rf.amp * rf.amp_shape.0[i] * dur * std::f64::consts::TAU,
+            phase: rf.phase + rf.phase_shape.0[i] * std::f64::consts::TAU,
+        });
     }
+
+    rot
 }
 
 pub fn sample_grad(t: f64, grad: &Gradient, grad_raster: f64) -> f64 {
